@@ -309,8 +309,7 @@ def apply_split(
     """Create new playlists from split proposals."""
     created: list[dict[str, Any]] = []
     for proposal in proposals:
-        playlist = sp.user_playlist_create(
-            user_id,
+        playlist = sp.current_user_playlist_create(
             f"{proposal.cluster_label} Mix",
             public=False,
             description=f"Split from playlist {source_playlist_id}",

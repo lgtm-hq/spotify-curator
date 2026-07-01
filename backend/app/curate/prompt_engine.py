@@ -23,6 +23,7 @@ from app.ai.prompts.curate import (
 from app.db import CurateSessionRecord, dumps_json, loads_json, utcnow
 from app.spotify_candidates import get_recommendation_candidates
 from app.taste.models import TasteProfile
+from app.track_metadata import enrich_track_uris
 
 MAX_ROUNDS = 5
 
@@ -237,6 +238,13 @@ def build_playlist_from_brief(
             "reasoning": "Selected top recommendations matching taste seeds.",
         }
 
+    parsed["tracks"] = enrich_track_uris(
+        sp,
+        list(parsed.get("track_uris", [])),
+        candidates=candidates,
+    )
+    parsed["track_uris"] = [track["uri"] for track in parsed["tracks"]]
+
     record.proposed_tracks_json = dumps_json(parsed)
     record.status = "proposal_ready"
     record.updated_at = utcnow()
@@ -249,6 +257,7 @@ def save_playlist_to_spotify(
     sp: spotipy.Spotify,
     db: Session,
     session_id: str,
+    track_uris: list[str] | None = None,
 ) -> dict[str, Any]:
     """Create Spotify playlist from proposed tracks."""
     record = db.get(CurateSessionRecord, session_id)
@@ -261,14 +270,16 @@ def save_playlist_to_spotify(
         msg = "Invalid proposal data"
         raise ValueError(msg)
 
-    me = sp.me()
-    playlist = sp.user_playlist_create(
-        me["id"],
+    uris = track_uris or proposal.get("track_uris", [])
+    if not uris:
+        msg = "No tracks to save"
+        raise ValueError(msg)
+
+    playlist = sp.current_user_playlist_create(
         proposal.get("name", "Mood Mix"),
         public=False,
         description=proposal.get("description", ""),
     )
-    uris = proposal.get("track_uris", [])
     for i in range(0, len(uris), 100):
         sp.playlist_add_items(playlist["id"], uris[i : i + 100])
 

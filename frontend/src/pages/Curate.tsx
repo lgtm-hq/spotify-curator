@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { api } from "../api/client";
+import { PlaylistPreview, type CurateProposal } from "../components/PlaylistPreview";
 
 interface ChatMessage {
   role: "assistant" | "user";
@@ -65,12 +66,7 @@ export function Curate() {
   const [done, setDone] = useState(false);
   const [errorStage, setErrorStage] = useState<ErrorStage>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
-  const [proposal, setProposal] = useState<{
-    name: string;
-    description: string;
-    track_uris: string[];
-    reasoning: string;
-  } | null>(null);
+  const [proposal, setProposal] = useState<CurateProposal | null>(null);
 
   const clearError = () => {
     setErrorStage(null);
@@ -141,7 +137,8 @@ export function Curate() {
   });
 
   const save = useMutation({
-    mutationFn: (sessionId: string) => api.curateSave(sessionId),
+    mutationFn: ({ sessionId, trackUris }: { sessionId: string; trackUris: string[] }) =>
+      api.curateSave(sessionId, trackUris),
     onMutate: () => clearError(),
     onError: (error) => {
       setErrorStage("save");
@@ -184,6 +181,18 @@ export function Curate() {
     if (!sessionId) return;
     clearError();
     build.mutate({ sessionId });
+  };
+
+  const removeTrack = (trackId: string) => {
+    setProposal((current) => {
+      if (!current) return current;
+      const tracks = current.tracks.filter((track) => track.id !== trackId);
+      return {
+        ...current,
+        tracks,
+        track_uris: tracks.map((track) => track.uri),
+      };
+    });
   };
 
   const canSend = Boolean(sessionId && !done && composeAnswer().trim() && !isBusy);
@@ -310,24 +319,38 @@ export function Curate() {
       </div>
 
       {proposal && (
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-6">
-          <h3 className="mb-2 text-xl font-semibold">{proposal.name}</h3>
-          <p className="mb-2 text-zinc-300">{proposal.description}</p>
-          <p className="mb-4 text-sm text-zinc-400">{proposal.reasoning}</p>
-          <p className="mb-4 text-sm">{proposal.track_uris.length} tracks selected</p>
+        <div className="space-y-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-6">
+          <div>
+            <h3 className="mb-2 text-xl font-semibold">{proposal.name}</h3>
+            <p className="mb-2 text-zinc-300">{proposal.description}</p>
+            <details className="rounded-lg border border-white/10 bg-black/20 px-4 py-3">
+              <summary className="cursor-pointer text-sm text-zinc-400">
+                Why these picks?
+              </summary>
+              <p className="mt-3 text-sm leading-relaxed text-zinc-400">{proposal.reasoning}</p>
+            </details>
+          </div>
+
+          <PlaylistPreview tracks={proposal.tracks} onRemove={removeTrack} />
+
           {errorText && errorStage === "save" && (
-            <div className="mb-4">
-              <ErrorBanner message={errorText} />
-            </div>
+            <ErrorBanner message={errorText} />
           )}
-          <div className="flex gap-3">
+
+          <div className="flex flex-wrap gap-3">
             <button
               type="button"
-              onClick={() => sessionId && save.mutate(sessionId)}
-              disabled={save.isPending}
+              onClick={() =>
+                sessionId &&
+                save.mutate({
+                  sessionId,
+                  trackUris: proposal.track_uris,
+                })
+              }
+              disabled={save.isPending || proposal.tracks.length === 0}
               className="rounded-lg bg-emerald-500 px-4 py-2 font-medium text-black transition hover:bg-emerald-400 active:scale-[0.98] disabled:opacity-60"
             >
-              {save.isPending ? "Saving…" : "Save to Spotify"}
+              {save.isPending ? "Saving…" : `Save ${proposal.tracks.length} tracks to Spotify`}
             </button>
             <button
               type="button"
@@ -340,7 +363,7 @@ export function Curate() {
               Refine
             </button>
           </div>
-          {save.isSuccess && <p className="mt-3 text-emerald-400">Playlist saved!</p>}
+          {save.isSuccess && <p className="text-emerald-400">Playlist saved!</p>}
         </div>
       )}
     </div>

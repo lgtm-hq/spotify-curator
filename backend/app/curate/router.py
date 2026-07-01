@@ -40,6 +40,7 @@ class SaveRequest(BaseModel):
     """Save playlist to Spotify."""
 
     session_id: str
+    track_uris: list[str] | None = None
 
 
 @router.post("/start")
@@ -110,6 +111,11 @@ async def curate_save(
     """Save curated playlist to Spotify."""
     try:
         sp = await get_spotify_client(db)
-        return save_playlist_to_spotify(sp=sp, db=db, session_id=body.session_id)
+        return save_playlist_to_spotify(
+            sp=sp,
+            db=db,
+            session_id=body.session_id,
+            track_uris=body.track_uris,
+        )
     except Exception as exc:
         raise_curate_http_error(exc, action="save")

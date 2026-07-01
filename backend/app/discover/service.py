@@ -84,9 +84,7 @@ def generate_discovery_playlist(
         description = "Auto-generated from Spotify recommendations"
         reasoning = "AI disabled — used top recommendations"
 
-    me = sp.me()
-    playlist = sp.user_playlist_create(
-        me["id"],
+    playlist = sp.current_user_playlist_create(
         name,
         public=False,
         description=description,

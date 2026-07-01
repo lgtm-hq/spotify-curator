@@ -99,15 +99,26 @@ export const api = {
       name: string;
       description: string;
       track_uris: string[];
+      tracks: {
+        id: string;
+        uri: string;
+        name: string;
+        artists: string[];
+        album: string | null;
+        duration_ms: number;
+        image_url: string | null;
+        preview_url: string | null;
+        explicit: boolean;
+      }[];
       reasoning: string;
     }>("/curate/build", {
       method: "POST",
       body: JSON.stringify({ session_id: sessionId, feedback }),
     }),
-  curateSave: (sessionId: string) =>
+  curateSave: (sessionId: string, trackUris?: string[]) =>
     request<{ playlist_id: string; name: string; tracks: number }>("/curate/save", {
       method: "POST",
-      body: JSON.stringify({ session_id: sessionId }),
+      body: JSON.stringify({ session_id: sessionId, track_uris: trackUris }),
     }),
   discoverGenerate: () =>
     request<{
