@@ -135,6 +135,24 @@ export interface CleanupAiSuggestResult {
   suggestions: CleanupSuggestion[];
 }
 
+export interface CleanupSuggestJobProgress {
+  phase: string;
+  playlist_index: number;
+  playlist_total: number;
+  playlist_name: string;
+  track_total: number;
+  tracks_loaded: number;
+  playlists_completed: number;
+}
+
+export interface CleanupSuggestJob {
+  job_id: string;
+  status: "scanning" | "ai" | "completed" | "failed";
+  progress: CleanupSuggestJobProgress;
+  result: CleanupAiSuggestResult | null;
+  error: string | null;
+}
+
 export const api = {
   me: () => request<MeResponse>("/auth/me"),
   account: () => request<AccountResponse>("/auth/account"),
@@ -166,8 +184,12 @@ export const api = {
     request<CleanupAnalysis>(`/cleanup/analyze/${playlistId}`, {
       method: "POST",
     }),
-  cleanupAiSuggest: () =>
-    request<CleanupAiSuggestResult>("/cleanup/ai/suggest", { method: "POST" }),
+  cleanupAiSuggestStart: () =>
+    request<{ job_id: string; status: string }>("/cleanup/ai/suggest", {
+      method: "POST",
+    }),
+  cleanupAiSuggestJob: (jobId: string) =>
+    request<CleanupSuggestJob>(`/cleanup/ai/suggest/jobs/${jobId}`),
   cleanupRemove: (playlistId: string, trackIds: string[]) =>
     request<{ removed: number }>("/cleanup/apply/remove", {
       method: "POST",

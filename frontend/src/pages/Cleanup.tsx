@@ -22,21 +22,48 @@ export function Cleanup() {
   const [selectedId, setSelectedId] = useState("");
   const [aiSuggestions, setAiSuggestions] = useState<CleanupAiSuggestResult | null>(null);
   const [scanStartedAt, setScanStartedAt] = useState<number | null>(null);
+  const [scanJobId, setScanJobId] = useState<string | null>(null);
 
   const aiSuggest = useMutation({
-    mutationFn: () => api.cleanupAiSuggest(),
+    mutationFn: () => api.cleanupAiSuggestStart(),
     onMutate: () => {
       setScanStartedAt(Date.now());
       setAiSuggestions(null);
+      setScanJobId(null);
     },
     onSuccess: (result) => {
-      setAiSuggestions(result);
-      setScanStartedAt(null);
+      setScanJobId(result.job_id);
     },
     onError: () => {
       setScanStartedAt(null);
+      setScanJobId(null);
     },
   });
+
+  const scanJob = useQuery({
+    queryKey: ["cleanup-suggest-job", scanJobId],
+    queryFn: () => api.cleanupAiSuggestJob(scanJobId!),
+    enabled: Boolean(scanJobId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status === "completed" || status === "failed") {
+        return false;
+      }
+      return 1000;
+    },
+  });
+
+  useEffect(() => {
+    if (scanJob.data?.status === "completed" && scanJob.data.result) {
+      setAiSuggestions(scanJob.data.result);
+      setScanJobId(null);
+      setScanStartedAt(null);
+    }
+    if (scanJob.data?.status === "failed") {
+      setScanJobId(null);
+      setScanStartedAt(null);
+    }
+  }, [scanJob.data]);
 
   const manualAnalysis = useQuery({
     queryKey: ["cleanup-analysis", selectedId],
@@ -98,27 +125,39 @@ export function Cleanup() {
           </div>
           <button
             type="button"
-            disabled={aiSuggest.isPending}
+            disabled={aiSuggest.isPending || Boolean(scanJobId)}
             onClick={() => aiSuggest.mutate()}
             className="rounded-lg bg-violet-500 px-4 py-2 font-medium text-black disabled:opacity-50"
           >
-            {aiSuggest.isPending ? "Scanning library…" : "Scan my library"}
+            {aiSuggest.isPending || scanJobId ? "Scanning library…" : "Scan my library"}
           </button>
         </div>
+
+        {(scanJob.data?.status === "failed" || scanJob.isError) && (
+          <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {scanJob.data?.error ??
+              (scanJob.error instanceof Error
+                ? scanJob.error.message
+                : "Could not generate cleanup suggestions.")}
+          </p>
+        )}
 
         {aiSuggest.isError && (
           <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
             {aiSuggest.error instanceof Error
               ? aiSuggest.error.message
-              : "Could not generate cleanup suggestions."}
+              : "Could not start cleanup scan."}
           </p>
         )}
 
-        {aiSuggest.isPending && (
-          <ScanProgress startedAt={scanStartedAt ?? Date.now()} />
+        {(aiSuggest.isPending || scanJobId) && (
+          <ScanProgress
+            startedAt={scanStartedAt ?? Date.now()}
+            progress={scanJob.data?.progress}
+          />
         )}
 
-        {aiSuggestions && !aiSuggest.isPending && (
+        {aiSuggestions && !scanJobId && !aiSuggest.isPending && (
           <div className="space-y-4">
             <p className="text-sm text-zinc-300">{aiSuggestions.summary}</p>
             <p className="text-xs text-zinc-500">
@@ -210,7 +249,21 @@ export function Cleanup() {
   );
 }
 
-function ScanProgress({ startedAt }: { startedAt: number }) {
+function ScanProgress({
+  startedAt,
+  progress,
+}: {
+  startedAt: number;
+  progress?: {
+    phase: string;
+    playlist_index: number;
+    playlist_total: number;
+    playlist_name: string;
+    track_total: number;
+    tracks_loaded: number;
+    playlists_completed: number;
+  };
+}) {
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
@@ -221,20 +274,39 @@ function ScanProgress({ startedAt }: { startedAt: number }) {
     return () => window.clearInterval(timer);
   }, [startedAt]);
 
-  const stage =
-    elapsed < 8
-      ? "Scanning your largest playlists for duplicates and dead tracks…"
-      : elapsed < 45
-        ? "Generating AI cleanup suggestions…"
-        : "Still working — large libraries can take up to a minute…";
+  let stage = "Preparing library scan…";
+  if (progress?.phase === "ai") {
+    stage = "Generating AI cleanup suggestions from full scan results…";
+  } else if (progress?.playlist_name) {
+    const trackLabel =
+      progress.track_total > 0
+        ? `${progress.tracks_loaded}/${progress.track_total} tracks`
+        : `${progress.tracks_loaded} tracks loaded`;
+    stage = `Scanning "${progress.playlist_name}" (${trackLabel}) — playlist ${progress.playlist_index}/${progress.playlist_total}`;
+  }
+
+  const completed = progress?.playlists_completed ?? 0;
+  const total = progress?.playlist_total ?? 0;
+  const percent =
+    total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : undefined;
 
   return (
     <div className="space-y-3 rounded-lg border border-violet-500/20 bg-black/20 p-4">
       <p className="text-sm text-violet-200">{stage}</p>
-      <p className="text-xs text-zinc-500">{elapsed}s elapsed</p>
+      <p className="text-xs text-zinc-500">
+        {elapsed}s elapsed
+        {total > 0 ? ` · ${completed}/${total} playlists complete` : ""}
+      </p>
       <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-        <div className="h-full w-1/3 animate-pulse rounded-full bg-violet-500/60" />
+        <div
+          className="h-full rounded-full bg-violet-500/70 transition-all duration-500"
+          style={{ width: `${percent ?? 33}%` }}
+        />
       </div>
+      <p className="text-xs text-zinc-500">
+        Full scans run in parallel and cached for an hour — AI only receives summary
+        stats, not every track.
+      </p>
     </div>
   );
 }

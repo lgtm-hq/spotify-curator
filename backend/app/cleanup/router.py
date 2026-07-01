@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.auth.router import get_current_user, get_db
-from app.cleanup.ai_service import suggest_library_cleanups
 from app.cleanup.service import (
     CleanupAnalysis,
     SplitProposal,
@@ -18,28 +16,33 @@ from app.cleanup.service import (
     apply_removals,
     apply_split,
 )
-from app.errors import raise_curate_http_error
+from app.cleanup.suggest_jobs import create_suggest_job, get_suggest_job, run_suggest_job
 from app.spotify_client import get_spotify_client
 
 router = APIRouter(prefix="/cleanup", tags=["cleanup"])
 
 
 @router.post("/ai/suggest")
-async def ai_suggest(
+async def start_ai_suggest(
+    background_tasks: BackgroundTasks,
     user_id: str = Depends(get_current_user),
-    db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    """Scan the library and return AI cleanup suggestions."""
-    try:
-        sp = await get_spotify_client(db)
-        return await asyncio.to_thread(
-            suggest_library_cleanups,
-            sp,
-            db=db,
-            current_user_id=user_id,
-        )
-    except Exception as exc:
-        raise_curate_http_error(exc, action="cleanup suggest")
+    """Start a background library scan and AI cleanup suggestion job."""
+    job = create_suggest_job()
+    background_tasks.add_task(run_suggest_job, job.job_id, current_user_id=user_id)
+    return {"job_id": job.job_id, "status": job.status}
+
+
+@router.get("/ai/suggest/jobs/{job_id}")
+async def get_ai_suggest_job(
+    job_id: str,
+    _user: str = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Poll cleanup suggestion job progress and results."""
+    job = get_suggest_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Cleanup job not found")
+    return job.to_dict()
 
 
 class RemoveRequest(BaseModel):

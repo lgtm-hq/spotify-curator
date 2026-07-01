@@ -89,6 +89,16 @@ class CleanupRunRecord(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class PlaylistScanCacheRecord(Base):
+    """Cached duplicate/unavailable stats for a playlist."""
+
+    __tablename__ = "playlist_scan_cache"
+
+    playlist_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    scan_json: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 settings = get_settings()
 engine = create_engine(
     settings.database_url,
