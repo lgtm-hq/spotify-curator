@@ -9,17 +9,13 @@ import spotipy
 from spotipy.exceptions import SpotifyException
 
 from app.taste.models import TasteProfile
+from app.track_metadata import spotify_track_fields
 
 logger = logging.getLogger(__name__)
 
 
 def _track_to_candidate(track: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "id": track["id"],
-        "uri": track["uri"],
-        "name": track.get("name", "Unknown"),
-        "artists": [a["name"] for a in track.get("artists", [])],
-    }
+    return spotify_track_fields(track)
 
 
 def _map_candidate_tracks(tracks: list[dict[str, Any]]) -> list[dict[str, Any]]:

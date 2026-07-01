@@ -17,6 +17,22 @@ def _track_id_from_uri(uri: str) -> str | None:
     return None
 
 
+def spotify_track_fields(track: dict[str, Any]) -> dict[str, Any]:
+    """Extract display metadata from a Spotify track object."""
+    images = (track.get("album") or {}).get("images") or []
+    return {
+        "id": str(track["id"]),
+        "uri": str(track.get("uri", f"spotify:track:{track['id']}")),
+        "name": str(track.get("name", "Unknown")),
+        "artists": [str(a.get("name", "Unknown")) for a in track.get("artists", [])],
+        "album": (track.get("album") or {}).get("name"),
+        "duration_ms": int(track.get("duration_ms") or 0),
+        "image_url": images[0]["url"] if images else None,
+        "preview_url": track.get("preview_url"),
+        "explicit": bool(track.get("explicit")),
+    }
+
+
 def _format_track(
     *,
     track_id: str,
@@ -43,18 +59,7 @@ def _format_track(
 
 
 def _spotify_track_to_entry(track: dict[str, Any]) -> dict[str, Any]:
-    images = (track.get("album") or {}).get("images") or []
-    return _format_track(
-        track_id=str(track["id"]),
-        uri=str(track.get("uri", f"spotify:track:{track['id']}")),
-        name=str(track.get("name", "Unknown")),
-        artists=[str(a.get("name", "Unknown")) for a in track.get("artists", [])],
-        album=(track.get("album") or {}).get("name"),
-        duration_ms=int(track.get("duration_ms") or 0),
-        image_url=images[0]["url"] if images else None,
-        preview_url=track.get("preview_url"),
-        explicit=bool(track.get("explicit")),
-    )
+    return spotify_track_fields(track)
 
 
 def _candidate_maps(
@@ -83,6 +88,11 @@ def _entry_from_candidate(
         uri=uri,
         name=str(candidate.get("name", "Unknown")),
         artists=[str(a) for a in candidate.get("artists", [])],
+        album=candidate.get("album"),
+        duration_ms=int(candidate.get("duration_ms") or 0),
+        image_url=candidate.get("image_url"),
+        preview_url=candidate.get("preview_url"),
+        explicit=bool(candidate.get("explicit")),
     )
 
 
