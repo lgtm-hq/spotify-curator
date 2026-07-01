@@ -8,6 +8,8 @@ import yaml
 from pydantic import BaseModel, Field, model_validator
 
 from app.ai.enums import AIProvider, AITransport
+from app.ai.providers.base import BaseAIProvider
+from app.config import DEFAULT_CONFIG_FILE
 
 
 class AIConfig(BaseModel):
@@ -40,7 +42,7 @@ class AIConfig(BaseModel):
 
 def load_ai_config(path: Path | None = None) -> AIConfig:
     """Load AI config from YAML file."""
-    config_path = path or Path("config.yaml")
+    config_path = path or DEFAULT_CONFIG_FILE
     if not config_path.exists():
         return AIConfig()
     data = yaml.safe_load(config_path.read_text()) or {}
@@ -50,7 +52,7 @@ def load_ai_config(path: Path | None = None) -> AIConfig:
 
 def get_provider(
     ai_config: AIConfig,
-):
+) -> BaseAIProvider:
     """Factory for AI provider instances."""
     from app.ai.providers.anthropic import AnthropicProvider
     from app.ai.providers.cursor import CursorProvider

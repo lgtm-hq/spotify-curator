@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from typing import Any
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.auth.router import get_current_user, get_db
@@ -31,7 +32,7 @@ class SplitRequest(BaseModel):
     """Request to split playlist."""
 
     source_playlist_id: str
-    proposals: list[dict]
+    proposals: list[dict[str, Any]]
 
 
 @router.post("/analyze/{playlist_id}")
@@ -39,7 +40,7 @@ async def analyze(
     playlist_id: str,
     _user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Analyze a playlist for cleanup opportunities."""
     sp = await get_spotify_client(db)
     result: CleanupAnalysis = await analyze_playlist(sp, playlist_id=playlist_id, db=db)
@@ -70,10 +71,15 @@ async def remove_tracks(
     body: RemoveRequest,
     _user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> dict:
+) -> dict[str, int]:
     """Remove tracks from a playlist."""
     sp = await get_spotify_client(db)
-    return apply_removals(sp, playlist_id=body.playlist_id, track_ids=body.track_ids, db=db)
+    return apply_removals(
+        sp,
+        playlist_id=body.playlist_id,
+        track_ids=body.track_ids,
+        db=db,
+    )
 
 
 @router.post("/apply/split")
@@ -81,7 +87,7 @@ async def split_playlist(
     body: SplitRequest,
     user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Create split playlists from cluster proposals."""
     sp = await get_spotify_client(db)
     me = sp.me()

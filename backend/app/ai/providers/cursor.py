@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-
 from app.ai.exceptions import AINotAvailableError
 from app.ai.json_response import CliSchemaRequest
 from app.ai.providers.base import BaseAIProvider
@@ -21,6 +19,7 @@ class CursorProvider(BaseAIProvider):
     """Cursor agent CLI provider (CLI only)."""
 
     def __init__(self, *, model: str | None = None, max_tokens: int = 4096) -> None:
+        """Configure Cursor agent CLI transport."""
         super().__init__(
             provider_name="cursor",
             default_model=model or "composer-2.5-fast",
@@ -42,6 +41,7 @@ class CursorProvider(BaseAIProvider):
         use_one_shot: bool = False,
         cli_schema: CliSchemaRequest | None = None,
     ) -> AIResponse:
+        """Generate a completion via the Cursor agent CLI."""
         binary = CliTransport.find_binary("agent")
         if not binary:
             raise AINotAvailableError("agent CLI not found. Run Cursor CLI setup.")
@@ -74,7 +74,10 @@ class CursorProvider(BaseAIProvider):
             timeout=max(timeout, 600.0),
             cwd=repo_root,
         )
-        self._cli.check_exit_code(result, auth_hint="Run `agent login` or set CURSOR_API_KEY")
+        self._cli.check_exit_code(
+            result,
+            auth_hint="Run `agent login` or set CURSOR_API_KEY",
+        )
         payload = self._cli.extract_json_object(result.stdout)
         if payload.get("session_id"):
             self._session_id = str(payload["session_id"])

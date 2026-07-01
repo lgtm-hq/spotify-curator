@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import json
 import uuid
+from typing import Any
+
+import spotipy
+from sqlalchemy.orm import Session
 
 from app.ai.budget import CostBudget
 from app.ai.cli_schemas import curate_playlist_schema, curate_question_schema
@@ -19,11 +23,10 @@ from app.ai.prompts.curate import (
 from app.db import CurateSessionRecord, dumps_json, loads_json, utcnow
 from app.taste.models import TasteProfile
 
-
 MAX_ROUNDS = 5
 
 
-def _format_conversation(messages: list[dict]) -> str:
+def _format_conversation(messages: list[dict[str, Any]]) -> str:
     lines = []
     for msg in messages:
         role = msg.get("role", "user")
@@ -32,12 +35,17 @@ def _format_conversation(messages: list[dict]) -> str:
     return "\n".join(lines) or "(none)"
 
 
-def start_session(*, db, taste_profile: TasteProfile) -> dict:
+def start_session(*, db: Session, taste_profile: TasteProfile) -> dict[str, Any]:
     """Start a new mood concierge session."""
     ai_config = load_ai_config()
     if not ai_config.enabled:
         session_id = str(uuid.uuid4())
-        messages = [{"role": "assistant", "content": "What kind of vibe are you in the mood for?"}]
+        messages = [
+            {
+                "role": "assistant",
+                "content": "What kind of vibe are you in the mood for?",
+            },
+        ]
         record = CurateSessionRecord(
             id=session_id,
             conversation_json=dumps_json(messages),
@@ -60,7 +68,11 @@ def start_session(*, db, taste_profile: TasteProfile) -> dict:
         taste_profile=taste_profile.model_dump_json(),
         conversation="(starting interview)",
     )
-    cli_schema = curate_question_schema() if ai_config.transport and ai_config.transport.value == "cli" else None
+    cli_schema = (
+        curate_question_schema()
+        if ai_config.transport and ai_config.transport.value == "cli"
+        else None
+    )
     response = call_ai(
         provider=provider,
         ai_config=ai_config,
@@ -88,11 +100,11 @@ def start_session(*, db, taste_profile: TasteProfile) -> dict:
 
 def answer_session(
     *,
-    db,
+    db: Session,
     session_id: str,
     answer: str,
     taste_profile: TasteProfile,
-) -> dict:
+) -> dict[str, Any]:
     """Process user answer and return next question or brief."""
     record = db.get(CurateSessionRecord, session_id)
     if record is None:
@@ -111,7 +123,11 @@ def answer_session(
             record.status = "brief_ready"
             record.updated_at = utcnow()
             db.commit()
-            return {"session_id": session_id, "done": True, "playlist_brief": record.playlist_brief}
+            return {
+                "session_id": session_id,
+                "done": True,
+                "playlist_brief": record.playlist_brief,
+            }
         record.conversation_json = dumps_json(messages)
         record.updated_at = utcnow()
         db.commit()
@@ -128,7 +144,11 @@ def answer_session(
         taste_profile=taste_profile.model_dump_json(),
         conversation=_format_conversation(messages),
     )
-    cli_schema = curate_question_schema() if ai_config.transport and ai_config.transport.value == "cli" else None
+    cli_schema = (
+        curate_question_schema()
+        if ai_config.transport and ai_config.transport.value == "cli"
+        else None
+    )
     response = call_ai(
         provider=provider,
         ai_config=ai_config,
@@ -146,7 +166,10 @@ def answer_session(
 
     user_rounds = len([m for m in messages if m.get("role") == "user"])
     if parsed.get("done") or user_rounds >= MAX_ROUNDS:
-        record.playlist_brief = parsed.get("playlist_brief") or f"Curated mood: {_format_conversation(messages)}"
+        record.playlist_brief = (
+            parsed.get("playlist_brief")
+            or f"Curated mood: {_format_conversation(messages)}"
+        )
         record.status = "brief_ready"
         parsed["done"] = True
         parsed["playlist_brief"] = record.playlist_brief
@@ -157,19 +180,19 @@ def answer_session(
 
 def build_playlist_from_brief(
     *,
-    sp,
-    db,
+    sp: spotipy.Spotify,
+    db: Session,
     session_id: str,
     taste_profile: TasteProfile,
     feedback: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Build playlist from session brief using Spotify recs + AI."""
     record = db.get(CurateSessionRecord, session_id)
     if record is None or not record.playlist_brief:
         msg = "Session not ready for playlist build"
         raise ValueError(msg)
 
-    seeds: dict = {}
+    seeds: dict[str, Any] = {}
     if taste_profile.top_track_ids:
         seeds["seed_tracks"] = taste_profile.top_track_ids[:2]
     if taste_profile.top_artist_ids:
@@ -203,7 +226,11 @@ def build_playlist_from_brief(
                 taste_profile=taste_profile.model_dump_json(),
                 candidates=json.dumps(candidates[:40]),
             )
-        cli_schema = curate_playlist_schema() if ai_config.transport and ai_config.transport.value == "cli" else None
+        cli_schema = (
+            curate_playlist_schema()
+            if ai_config.transport and ai_config.transport.value == "cli"
+            else None
+        )
         response = call_ai(
             provider=provider,
             ai_config=ai_config,
@@ -229,7 +256,12 @@ def build_playlist_from_brief(
     return parsed
 
 
-def save_playlist_to_spotify(*, sp, db, session_id: str) -> dict:
+def save_playlist_to_spotify(
+    *,
+    sp: spotipy.Spotify,
+    db: Session,
+    session_id: str,
+) -> dict[str, Any]:
     """Create Spotify playlist from proposed tracks."""
     record = db.get(CurateSessionRecord, session_id)
     if record is None or not record.proposed_tracks_json:
@@ -255,4 +287,8 @@ def save_playlist_to_spotify(*, sp, db, session_id: str) -> dict:
     record.status = "saved"
     record.updated_at = utcnow()
     db.commit()
-    return {"playlist_id": playlist["id"], "name": playlist["name"], "tracks": len(uris)}
+    return {
+        "playlist_id": playlist["id"],
+        "name": playlist["name"],
+        "tracks": len(uris),
+    }

@@ -8,8 +8,13 @@ import re
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
+from typing import Any, cast
 
-from app.ai.exceptions import AIAuthenticationError, AINotAvailableError, AIProviderError
+from app.ai.exceptions import (
+    AIAuthenticationError,
+    AINotAvailableError,
+    AIProviderError,
+)
 
 
 class CliTransport(ABC):
@@ -23,6 +28,7 @@ class CliTransport(ABC):
         install_hint: str,
         api_key_env: str | None = None,
     ) -> None:
+        """Store CLI binary metadata for subprocess execution."""
         self._binary_path = binary_path
         self._binary_name = binary_name
         self._install_hint = install_hint
@@ -46,7 +52,7 @@ class CliTransport(ABC):
         if self._api_key_env and os.environ.get(self._api_key_env):
             env[self._api_key_env] = os.environ[self._api_key_env]
         try:
-            return subprocess.run(
+            return subprocess.run(  # nosec B603 - argv list from trusted provider wrappers, no shell
                 cmd,
                 input=input_text,
                 capture_output=True,
@@ -85,18 +91,18 @@ class CliTransport(ABC):
         )
 
     @staticmethod
-    def extract_json_object(text: str) -> dict:
+    def extract_json_object(text: str) -> dict[str, Any]:
         """Extract JSON object from noisy stdout."""
         text = text.strip()
         try:
             payload = json.loads(text)
             if isinstance(payload, dict):
-                return payload
+                return cast(dict[str, Any], payload)
         except json.JSONDecodeError:
             pass
         match = re.search(r"\{.*\}", text, re.DOTALL)
         if match:
-            return json.loads(match.group(0))
+            return cast(dict[str, Any], json.loads(match.group(0)))
         msg = "Could not extract JSON from CLI output"
         raise AIProviderError(msg)
 

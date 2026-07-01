@@ -7,6 +7,7 @@ import logging
 import yaml
 from apscheduler.schedulers.background import BackgroundScheduler
 
+from app.config import DEFAULT_CONFIG_FILE
 from app.db import SessionLocal
 
 logger = logging.getLogger(__name__)
@@ -38,7 +39,7 @@ def start_scheduler() -> None:
     """Start APScheduler if cron configured."""
     global _scheduler
     try:
-        with open("config.yaml") as f:
+        with DEFAULT_CONFIG_FILE.open() as f:
             data = yaml.safe_load(f) or {}
         cron = (data.get("discover") or {}).get("schedule_cron", "0 9 * * 1")
     except FileNotFoundError:

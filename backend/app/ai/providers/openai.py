@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from app.ai.enums import AITransport
 from app.ai.exceptions import AINotAvailableError
@@ -37,6 +38,7 @@ class OpenAIProvider(BaseAIProvider):
         transport: AITransport | None = AITransport.API,
         max_tokens: int = 4096,
     ) -> None:
+        """Configure OpenAI API or Codex CLI transport."""
         super().__init__(
             provider_name="openai",
             default_model="gpt-4o",
@@ -47,7 +49,7 @@ class OpenAIProvider(BaseAIProvider):
         )
         self._cli: _CodexCli | None = None
 
-    def _get_client(self):
+    def _get_client(self) -> Any:
         if not _HAS_SDK:
             raise AINotAvailableError("openai package not installed")
         if self._client is None:
@@ -65,6 +67,7 @@ class OpenAIProvider(BaseAIProvider):
         use_one_shot: bool = False,
         cli_schema: CliSchemaRequest | None = None,
     ) -> AIResponse:
+        """Generate a completion via OpenAI API or Codex CLI."""
         if self._transport == AITransport.CLI:
             return self._complete_cli(
                 prompt,
@@ -73,7 +76,12 @@ class OpenAIProvider(BaseAIProvider):
                 repo_root=repo_root,
                 cli_schema=cli_schema,
             )
-        return self._complete_api(prompt, system=system, max_tokens=max_tokens, timeout=timeout)
+        return self._complete_api(
+            prompt,
+            system=system,
+            max_tokens=max_tokens,
+            timeout=timeout,
+        )
 
     def _complete_api(
         self,
@@ -132,6 +140,9 @@ class OpenAIProvider(BaseAIProvider):
             cmd.extend(["--output-schema", json.dumps(cli_schema.schema)])
         cmd.append(full_prompt)
         result = self._cli.run(cmd, timeout=max(timeout, 120.0), cwd=repo_root)
-        self._cli.check_exit_code(result, auth_hint="Run `codex login` or set OPENAI_API_KEY")
+        self._cli.check_exit_code(
+            result,
+            auth_hint="Run `codex login` or set OPENAI_API_KEY",
+        )
         content = self._cli.parse_stdout(result.stdout)
         return AIResponse(content=content, model=self._model, provider="openai")

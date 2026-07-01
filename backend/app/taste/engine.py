@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 import json
+import logging
+from typing import Any
+
+import spotipy
+from sqlalchemy.orm import Session
 
 from app.ai.budget import CostBudget
 from app.ai.cli_schemas import taste_profile_schema
@@ -15,7 +20,7 @@ from app.spotify_client import paginate
 from app.taste.models import TasteProfile
 
 
-def _avg_features(sp, track_ids: list[str]) -> dict[str, float]:
+def _avg_features(sp: spotipy.Spotify, track_ids: list[str]) -> dict[str, float]:
     """Compute average audio features for tracks."""
     totals: dict[str, float] = {}
     count = 0
@@ -23,7 +28,8 @@ def _avg_features(sp, track_ids: list[str]) -> dict[str, float]:
         batch = track_ids[i : i + 100]
         try:
             feats = sp.audio_features(batch) or []
-        except Exception:
+        except Exception as exc:
+            logging.debug("audio_features unavailable for batch: %s", exc)
             continue
         for feat in feats:
             if not feat:
@@ -36,7 +42,7 @@ def _avg_features(sp, track_ids: list[str]) -> dict[str, float]:
     return {k: round(v / count, 3) for k, v in totals.items()}
 
 
-def _collect_listening_data(sp) -> dict:
+def _collect_listening_data(sp: spotipy.Spotify) -> dict[str, Any]:
     """Collect raw listening data from Spotify."""
     top_artists_short = sp.current_user_top_artists(limit=20, time_range="short_term")
     top_artists_medium = sp.current_user_top_artists(limit=20, time_range="medium_term")
@@ -44,11 +50,16 @@ def _collect_listening_data(sp) -> dict:
     saved = paginate(sp, "current_user_saved_tracks", limit=50)[:50]
 
     genres: set[str] = set()
-    for artist in top_artists_short.get("items", []) + top_artists_medium.get("items", []):
+    for artist in top_artists_short.get("items", []) + top_artists_medium.get(
+        "items",
+        [],
+    ):
         for genre in artist.get("genres", []):
             genres.add(genre)
 
-    top_artist_ids = [a["id"] for a in top_artists_medium.get("items", []) if a.get("id")]
+    top_artist_ids = [
+        a["id"] for a in top_artists_medium.get("items", []) if a.get("id")
+    ]
     top_track_ids = [t["id"] for t in top_tracks.get("items", []) if t.get("id")]
     audio_features = _avg_features(sp, top_track_ids)
 
@@ -58,7 +69,10 @@ def _collect_listening_data(sp) -> dict:
             for a in top_artists_medium.get("items", [])
         ],
         "top_tracks": [
-            {"name": t.get("name"), "artists": [x["name"] for x in t.get("artists", [])]}
+            {
+                "name": t.get("name"),
+                "artists": [x["name"] for x in t.get("artists", [])],
+            }
             for t in top_tracks.get("items", [])
         ],
         "saved_tracks": [
@@ -77,7 +91,12 @@ def _collect_listening_data(sp) -> dict:
     }
 
 
-def build_taste_profile(sp, *, db, force_refresh: bool = False) -> TasteProfile:
+def build_taste_profile(
+    sp: spotipy.Spotify,
+    *,
+    db: Session,
+    force_refresh: bool = False,
+) -> TasteProfile:
     """Build or load cached taste profile."""
     if not force_refresh:
         record = db.get(TasteProfileRecord, 1)
@@ -97,7 +116,11 @@ def build_taste_profile(sp, *, db, force_refresh: bool = False) -> TasteProfile:
             saved_tracks=json.dumps(data["saved_tracks"][:15]),
             audio_features=json.dumps(data["audio_features"]),
         )
-        cli_schema = taste_profile_schema() if ai_config.transport and ai_config.transport.value == "cli" else None
+        cli_schema = (
+            taste_profile_schema()
+            if ai_config.transport and ai_config.transport.value == "cli"
+            else None
+        )
         response = call_ai(
             provider=provider,
             ai_config=ai_config,

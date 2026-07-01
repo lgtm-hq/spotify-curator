@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta
 
+import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import RedirectResponse
-from jose import JWTError, jwt
+from fastapi.responses import JSONResponse, RedirectResponse
+from jwt.exceptions import InvalidTokenError
 from sqlalchemy.orm import Session
 
 from app.auth.spotify_oauth import (
@@ -24,7 +26,7 @@ ALGORITHM = "HS256"
 SESSION_HOURS = 24 * 7
 
 
-def get_db() -> Session:
+def get_db() -> Iterator[Session]:
     """Yield a database session."""
     db = SessionLocal()
     try:
@@ -38,7 +40,7 @@ def create_session_token(*, user_id: str = "me") -> str:
     settings = get_settings()
     payload = {
         "sub": user_id,
-        "exp": datetime.now(timezone.utc) + timedelta(hours=SESSION_HOURS),
+        "exp": datetime.now(UTC) + timedelta(hours=SESSION_HOURS),
     }
     return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
 
@@ -55,7 +57,7 @@ def get_current_user(request: Request) -> str:
         if not sub:
             raise HTTPException(status_code=401, detail="Invalid session")
         return str(sub)
-    except JWTError as exc:
+    except InvalidTokenError as exc:
         raise HTTPException(status_code=401, detail="Invalid session") from exc
 
 
@@ -64,7 +66,13 @@ async def login() -> RedirectResponse:
     """Redirect to Spotify authorization."""
     state = generate_state()
     response = RedirectResponse(build_auth_url(state=state))
-    response.set_cookie("oauth_state", state, httponly=True, max_age=600, samesite="lax")
+    response.set_cookie(
+        "oauth_state",
+        state,
+        httponly=True,
+        max_age=600,
+        samesite="lax",
+    )
     return response
 
 
@@ -88,9 +96,10 @@ async def callback(
         raise HTTPException(status_code=400, detail="Invalid OAuth state")
 
     token_data = await exchange_code(code=code)
-    expires_at = datetime.now(timezone.utc) + timedelta(
-        seconds=int(token_data.get("expires_in", 3600)),
-    )
+    expires_in = token_data.get("expires_in", 3600)
+    if not isinstance(expires_in, (int, float)):
+        expires_in = 3600
+    expires_at = datetime.now(UTC) + timedelta(seconds=int(expires_in))
 
     record = db.get(TokenRecord, 1)
     if record is None:
@@ -124,7 +133,8 @@ def me(user_id: str = Depends(get_current_user)) -> dict[str, str]:
 
 
 @router.post("/logout")
-def logout() -> dict[str, str]:
+def logout() -> JSONResponse:
     """Clear session cookie."""
-    response = RedirectResponse(url="/", status_code=200)
-    return {"status": "logged_out"}
+    response = JSONResponse({"status": "logged_out"})
+    response.delete_cookie("session", httponly=True, samesite="lax")
+    return response

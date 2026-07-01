@@ -51,16 +51,26 @@ DISCOVER_SCHEMA = {
 
 
 def curate_question_schema() -> CliSchemaRequest:
-    return CliSchemaRequest(schema=CURATE_QUESTION_SCHEMA, schema_name="curate_question")
+    """Return CLI schema for mood concierge interview responses."""
+    return CliSchemaRequest(
+        schema=CURATE_QUESTION_SCHEMA,
+        schema_name="curate_question",
+    )
 
 
 def curate_playlist_schema() -> CliSchemaRequest:
-    return CliSchemaRequest(schema=CURATE_PLAYLIST_SCHEMA, schema_name="curate_playlist")
+    """Return CLI schema for curated playlist proposals."""
+    return CliSchemaRequest(
+        schema=CURATE_PLAYLIST_SCHEMA,
+        schema_name="curate_playlist",
+    )
 
 
 def taste_profile_schema() -> CliSchemaRequest:
+    """Return CLI schema for taste profile analysis."""
     return CliSchemaRequest(schema=TASTE_PROFILE_SCHEMA, schema_name="taste_profile")
 
 
 def discover_schema() -> CliSchemaRequest:
+    """Return CLI schema for discovery playlist output."""
     return CliSchemaRequest(schema=DISCOVER_SCHEMA, schema_name="discover")

@@ -1,3 +1,4 @@
+---
 ai:
   enabled: true
   provider: anthropic

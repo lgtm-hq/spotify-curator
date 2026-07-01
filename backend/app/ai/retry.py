@@ -6,9 +6,11 @@ import functools
 import random
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import Any, TypeVar
 
 from app.ai.exceptions import AIAuthenticationError, AIProviderError, AIRateLimitError
+
+T = TypeVar("T")
 
 
 def with_retry(
@@ -17,12 +19,12 @@ def with_retry(
     base_delay: float = 1.0,
     max_delay: float = 30.0,
     backoff_factor: float = 2.0,
-) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Retry AI calls with exponential backoff."""
 
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+    def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args: Any, **kwargs: Any) -> T:
             last_exc: Exception | None = None
             for attempt in range(max_retries + 1):
                 try:

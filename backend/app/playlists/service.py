@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import spotipy
 
-from app.playlists.models import PlaylistDetail, PlaylistSummary, TrackArtist, TrackSummary
+from app.playlists.models import (
+    PlaylistDetail,
+    PlaylistSummary,
+    TrackArtist,
+    TrackSummary,
+)
 from app.spotify_client import paginate
 
 
-def _map_track(item: dict) -> TrackSummary | None:
+def _map_track(item: dict[str, Any]) -> TrackSummary | None:
     """Map Spotify playlist track item to TrackSummary."""
     track = item.get("track") or item
     if not track or track.get("type") != "track" or not track.get("id"):

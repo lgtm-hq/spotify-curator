@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import uuid
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
+import spotipy
 from rapidfuzz import fuzz
 from sklearn.cluster import KMeans
+from sqlalchemy.orm import Session
 
 from app.db import CleanupRunRecord, dumps_json, utcnow
 from app.playlists.models import TrackSummary
@@ -115,7 +119,7 @@ def find_unavailable(tracks: list[TrackSummary]) -> list[CleanupIssue]:
 def find_skip_heavy(
     tracks: list[TrackSummary],
     *,
-    recently_played: list[dict],
+    recently_played: list[dict[str, Any]],
     skip_threshold: float = 0.7,
 ) -> list[CleanupIssue]:
     """Flag tracks with high skip rates from recently played history."""
@@ -154,7 +158,7 @@ def find_skip_heavy(
 def cluster_by_audio_features(
     tracks: list[TrackSummary],
     *,
-    features_by_id: dict[str, dict],
+    features_by_id: dict[str, dict[str, Any]],
     n_clusters: int = 4,
 ) -> list[SplitProposal]:
     """Cluster tracks by audio features for split proposals."""
@@ -203,10 +207,10 @@ def cluster_by_audio_features(
 
 
 async def analyze_playlist(
-    sp,
+    sp: spotipy.Spotify,
     *,
     playlist_id: str,
-    db,
+    db: Session,
 ) -> CleanupAnalysis:
     """Run full cleanup analysis on a playlist."""
     detail = get_playlist(sp, playlist_id=playlist_id)
@@ -219,7 +223,7 @@ async def analyze_playlist(
         recently_played=recent.get("items", []),
     )
 
-    features_by_id: dict[str, dict] = {}
+    features_by_id: dict[str, dict[str, Any]] = {}
     track_ids = [t.id for t in detail.tracks if t.id]
     for i in range(0, len(track_ids), 100):
         batch = track_ids[i : i + 100]
@@ -228,8 +232,8 @@ async def analyze_playlist(
             for feat in feats or []:
                 if feat and feat.get("id"):
                     features_by_id[feat["id"]] = feat
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.debug("audio_features unavailable for batch: %s", exc)
 
     clusters = cluster_by_audio_features(detail.tracks, features_by_id=features_by_id)
 
@@ -243,12 +247,23 @@ async def analyze_playlist(
     )
 
 
-def apply_removals(sp, *, playlist_id: str, track_ids: list[str], db) -> dict:
+def apply_removals(
+    sp: spotipy.Spotify,
+    *,
+    playlist_id: str,
+    track_ids: list[str],
+    db: Session,
+) -> dict[str, int]:
     """Remove tracks from a playlist."""
     if not track_ids:
         return {"removed": 0}
     # Fetch snapshot for removals
-    items = sp.playlist_items(playlist_id, limit=100, offset=0, additional_types=["track"])
+    items = sp.playlist_items(
+        playlist_id,
+        limit=100,
+        offset=0,
+        additional_types=["track"],
+    )
     all_items = items.get("items", [])
     offset = 100
     while items.get("next"):
@@ -283,15 +298,15 @@ def apply_removals(sp, *, playlist_id: str, track_ids: list[str], db) -> dict:
 
 
 def apply_split(
-    sp,
+    sp: spotipy.Spotify,
     *,
     source_playlist_id: str,
     proposals: list[SplitProposal],
     user_id: str,
-    db,
-) -> list[dict]:
+    db: Session,
+) -> list[dict[str, Any]]:
     """Create new playlists from split proposals."""
-    created: list[dict] = []
+    created: list[dict[str, Any]] = []
     for proposal in proposals:
         playlist = sp.user_playlist_create(
             user_id,
@@ -302,7 +317,9 @@ def apply_split(
         uris = [f"spotify:track:{tid}" for tid in proposal.track_ids]
         for i in range(0, len(uris), 100):
             sp.playlist_add_items(playlist["id"], uris[i : i + 100])
-        created.append({"id": playlist["id"], "name": playlist["name"], "tracks": len(uris)})
+        created.append(
+            {"id": playlist["id"], "name": playlist["name"], "tracks": len(uris)},
+        )
 
     record = CleanupRunRecord(
         id=str(uuid.uuid4()),

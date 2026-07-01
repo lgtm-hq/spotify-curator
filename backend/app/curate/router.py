@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.auth.router import get_current_user, get_db
@@ -44,7 +45,7 @@ class SaveRequest(BaseModel):
 async def curate_start(
     _user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Start mood concierge interview."""
     sp = await get_spotify_client(db)
     taste = build_taste_profile(sp, db=db)
@@ -56,7 +57,7 @@ async def curate_answer(
     body: AnswerRequest,
     _user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Answer interview question."""
     sp = await get_spotify_client(db)
     taste = build_taste_profile(sp, db=db)
@@ -76,7 +77,7 @@ async def curate_build(
     body: BuildRequest,
     _user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Build playlist from interview brief."""
     sp = await get_spotify_client(db)
     taste = build_taste_profile(sp, db=db)
@@ -97,7 +98,7 @@ async def curate_save(
     body: SaveRequest,
     _user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Save curated playlist to Spotify."""
     sp = await get_spotify_client(db)
     try:

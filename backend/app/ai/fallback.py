@@ -6,13 +6,14 @@ import threading
 
 from app.ai.exceptions import AIAuthenticationError, AIProviderError, AIRateLimitError
 from app.ai.json_response import CliSchemaRequest
+from app.ai.providers.base import BaseAIProvider
 from app.ai.providers.response import AIResponse
 
 _model_lock = threading.Lock()
 
 
 def complete_with_fallback(
-    provider,
+    provider: BaseAIProvider,
     prompt: str,
     *,
     fallback_models: list[str] | None = None,

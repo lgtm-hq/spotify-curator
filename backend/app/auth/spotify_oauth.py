@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from typing import cast
 from urllib.parse import urlencode
 
 import httpx
@@ -11,7 +12,9 @@ import httpx
 from app.config import get_settings
 
 AUTH_URL = "https://accounts.spotify.com/authorize"
-TOKEN_URL = "https://accounts.spotify.com/api/token"
+SPOTIFY_TOKEN_ENDPOINT = (  # nosec B105 - public OAuth endpoint URL, not a credential
+    "https://accounts.spotify.com/api/token"
+)
 
 _oauth_states: dict[str, datetime] = {}
 
@@ -19,7 +22,7 @@ _oauth_states: dict[str, datetime] = {}
 def generate_state() -> str:
     """Generate and store a CSRF state token."""
     state = secrets.token_urlsafe(32)
-    _oauth_states[state] = datetime.now(timezone.utc)
+    _oauth_states[state] = datetime.now(UTC)
     return state
 
 
@@ -28,7 +31,7 @@ def validate_state(state: str) -> bool:
     created = _oauth_states.pop(state, None)
     if created is None:
         return False
-    return datetime.now(timezone.utc) - created < timedelta(minutes=10)
+    return datetime.now(UTC) - created < timedelta(minutes=10)
 
 
 def build_auth_url(*, state: str) -> str:
@@ -50,7 +53,7 @@ async def exchange_code(*, code: str) -> dict[str, object]:
     settings = get_settings()
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            TOKEN_URL,
+            SPOTIFY_TOKEN_ENDPOINT,
             data={
                 "grant_type": "authorization_code",
                 "code": code,
@@ -62,7 +65,7 @@ async def exchange_code(*, code: str) -> dict[str, object]:
             timeout=30.0,
         )
         response.raise_for_status()
-        return response.json()
+        return cast(dict[str, object], response.json())
 
 
 async def refresh_access_token(*, refresh_token: str) -> dict[str, object]:
@@ -70,7 +73,7 @@ async def refresh_access_token(*, refresh_token: str) -> dict[str, object]:
     settings = get_settings()
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            TOKEN_URL,
+            SPOTIFY_TOKEN_ENDPOINT,
             data={
                 "grant_type": "refresh_token",
                 "refresh_token": refresh_token,
@@ -81,4 +84,4 @@ async def refresh_access_token(*, refresh_token: str) -> dict[str, object]:
             timeout=30.0,
         )
         response.raise_for_status()
-        return response.json()
+        return cast(dict[str, object], response.json())

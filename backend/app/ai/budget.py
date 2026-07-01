@@ -14,7 +14,11 @@ class CostBudget:
 
     max_cost_usd: float | None = None
     _spent: float = field(default=0.0, init=False)
-    _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
+    _lock: threading.Lock = field(
+        default_factory=threading.Lock,
+        init=False,
+        repr=False,
+    )
 
     def record(self, cost: float) -> None:
         """Record cost increment."""
@@ -30,6 +34,7 @@ class CostBudget:
     def check(self) -> None:
         """Raise if budget exceeded."""
         if self.max_cost_usd is not None and self.spent >= self.max_cost_usd:
-            raise AIError(
-                f"AI cost budget exceeded: ${self.spent:.4f} / ${self.max_cost_usd:.2f}",
+            msg = (
+                f"AI cost budget exceeded: ${self.spent:.4f} / ${self.max_cost_usd:.2f}"
             )
+            raise AIError(msg)

@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from app.ai.enums import AITransport
-from app.ai.exceptions import AINotAvailableError, AIProviderError
+from app.ai.exceptions import AINotAvailableError
 from app.ai.json_response import CliSchemaRequest
 from app.ai.providers.base import BaseAIProvider
 from app.ai.providers.cli_transport import CliTransport
@@ -39,6 +40,7 @@ class AnthropicProvider(BaseAIProvider):
         transport: AITransport | None = AITransport.API,
         max_tokens: int = 4096,
     ) -> None:
+        """Configure Anthropic API or Claude CLI transport."""
         super().__init__(
             provider_name="anthropic",
             default_model="claude-sonnet-4-20250514",
@@ -49,7 +51,7 @@ class AnthropicProvider(BaseAIProvider):
         )
         self._cli: _ClaudeCli | None = None
 
-    def _get_client(self):
+    def _get_client(self) -> Any:
         if not _HAS_SDK:
             raise AINotAvailableError("anthropic package not installed")
         if self._client is None:
@@ -67,6 +69,7 @@ class AnthropicProvider(BaseAIProvider):
         use_one_shot: bool = False,
         cli_schema: CliSchemaRequest | None = None,
     ) -> AIResponse:
+        """Generate a completion via Anthropic API or Claude CLI."""
         if self._transport == AITransport.CLI:
             return self._complete_cli(
                 prompt,
@@ -76,7 +79,12 @@ class AnthropicProvider(BaseAIProvider):
                 repo_root=repo_root,
                 cli_schema=cli_schema,
             )
-        return self._complete_api(prompt, system=system, max_tokens=max_tokens, timeout=timeout)
+        return self._complete_api(
+            prompt,
+            system=system,
+            max_tokens=max_tokens,
+            timeout=timeout,
+        )
 
     def _complete_api(
         self,
@@ -87,7 +95,7 @@ class AnthropicProvider(BaseAIProvider):
         timeout: float,
     ) -> AIResponse:
         client = self._get_client()
-        kwargs: dict = {
+        kwargs: dict[str, Any] = {
             "model": self._model,
             "max_tokens": max_tokens,
             "messages": [{"role": "user", "content": prompt}],
@@ -143,6 +151,9 @@ class AnthropicProvider(BaseAIProvider):
         if cli_schema:
             cmd.extend(["--json-schema", json.dumps(cli_schema.schema)])
         result = self._cli.run(cmd, timeout=max(timeout, 120.0), cwd=repo_root)
-        self._cli.check_exit_code(result, auth_hint="Run `claude login` or set ANTHROPIC_API_KEY")
+        self._cli.check_exit_code(
+            result,
+            auth_hint="Run `claude login` or set ANTHROPIC_API_KEY",
+        )
         content = self._cli.parse_stdout(result.stdout)
         return AIResponse(content=content, model=self._model, provider="anthropic")

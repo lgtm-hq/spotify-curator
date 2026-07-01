@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 from app.ai.budget import CostBudget
+from app.ai.config import AIConfig
 from app.ai.fallback import complete_with_fallback
 from app.ai.json_response import CliSchemaRequest
+from app.ai.providers.base import BaseAIProvider
 from app.ai.providers.response import AIResponse
 from app.ai.retry import with_retry
 
 
 def call_ai(
     *,
-    provider,
-    ai_config,
+    provider: BaseAIProvider,
+    ai_config: AIConfig,
     user_prompt: str,
     system_prompt: str | None,
     budget: CostBudget | None,
