@@ -1,0 +1,14 @@
+ai:
+  enabled: true
+  provider: anthropic
+  transport: api
+  model: claude-sonnet-4-20250514
+  api_timeout: 120
+  max_tokens: 4096
+  max_retries: 3
+  fallback_models: []
+  max_cost_usd: 0.50
+
+discover:
+  schedule_cron: "0 9 * * 1"
+  playlist_name_prefix: "Discover Weekly"
