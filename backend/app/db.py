@@ -27,6 +27,20 @@ class TokenRecord(Base):
     scope: Mapped[str] = mapped_column(String(512), default="")
 
 
+class UserRecord(Base):
+    """Spotify profile for the currently connected account."""
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True, default=1)
+    spotify_id: Mapped[str] = mapped_column(String(64), default="")
+    display_name: Mapped[str] = mapped_column(String(256), default="")
+    email: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    image_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    product: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    connected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class TasteProfileRecord(Base):
     """Cached taste profile JSON."""
 

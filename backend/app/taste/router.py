@@ -22,3 +22,13 @@ async def get_taste_profile(
     """Get or refresh taste profile."""
     sp = await get_spotify_client(db)
     return build_taste_profile(sp, db=db, force_refresh=refresh)
+
+
+@router.post("/refresh", response_model=TasteProfile)
+async def refresh_taste_profile(
+    _user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TasteProfile:
+    """Regenerate taste profile from current listening data."""
+    sp = await get_spotify_client(db)
+    return build_taste_profile(sp, db=db, force_refresh=True)

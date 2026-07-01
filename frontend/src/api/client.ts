@@ -51,13 +51,48 @@ export interface TasteProfile {
   energy_range: string;
 }
 
+export interface MeResponse {
+  connected: boolean;
+  user_id: string;
+  display_name: string | null;
+  email: string | null;
+  image_url: string | null;
+  connected_at: string | null;
+  has_taste_profile: boolean;
+  taste_updated_at: string | null;
+}
+
+export interface AccountResponse {
+  user: {
+    spotify_id: string;
+    display_name: string;
+    email: string | null;
+    image_url: string | null;
+    product: string | null;
+    connected_at: string;
+  } | null;
+  has_taste_profile: boolean;
+  taste_updated_at: string | null;
+  data_storage: {
+    database: string;
+    description: string;
+    stored_data: { key: string; description: string }[];
+  };
+}
+
 export const api = {
-  me: () => request<{ user_id: string }>("/auth/me"),
+  me: () => request<MeResponse>("/auth/me"),
+  account: () => request<AccountResponse>("/auth/account"),
+  logout: () => request<{ status: string }>("/auth/logout", { method: "POST" }),
   login: () => {
     window.location.href = "/auth/login";
   },
   playlists: () => request<PlaylistSummary[]>("/playlists"),
   taste: (refresh = false) => request<TasteProfile>(`/taste?refresh=${refresh}`),
+  tasteRefresh: () =>
+    request<TasteProfile>("/taste/refresh", {
+      method: "POST",
+    }),
   cleanupAnalyze: (playlistId: string) =>
     request<Record<string, unknown>>(`/cleanup/analyze/${playlistId}`, {
       method: "POST",
