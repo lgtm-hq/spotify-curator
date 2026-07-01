@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import { PlaylistBrowser } from "../components/playlists/PlaylistBrowser";
 import { api } from "../api/client";
 
 export function Dashboard() {
@@ -9,11 +10,6 @@ export function Dashboard() {
   const justLoggedIn = searchParams.get("login") === "1";
 
   const auth = useQuery({ queryKey: ["me"], queryFn: api.me, retry: false });
-  const playlists = useQuery({
-    queryKey: ["playlists"],
-    queryFn: api.playlists,
-    enabled: auth.isSuccess,
-  });
   const taste = useQuery({
     queryKey: ["taste"],
     queryFn: () => api.taste(false),
@@ -57,6 +53,10 @@ export function Dashboard() {
     );
   }
 
+  if (auth.isLoading) {
+    return <p className="text-zinc-400">Loading…</p>;
+  }
+
   const tasteLoading = taste.isLoading || (justLoggedIn && !taste.data && !taste.isError);
 
   return (
@@ -68,33 +68,7 @@ export function Dashboard() {
       )}
 
       <section>
-        <h2 className="mb-4 text-2xl font-semibold">Your Playlists</h2>
-        {playlists.isLoading && <p className="text-zinc-400">Loading...</p>}
-        {playlists.isError && (
-          <p className="text-red-400">
-            Failed to load playlists. Try refreshing or reconnecting Spotify.
-          </p>
-        )}
-        {!playlists.isLoading && !playlists.isError && (playlists.data?.length ?? 0) === 0 && (
-          <p className="text-zinc-400">No playlists found.</p>
-        )}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {(playlists.data ?? []).map((playlist) => (
-            <article key={playlist.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
-              {playlist.image_url && (
-                <img
-                  src={playlist.image_url}
-                  alt=""
-                  className="mb-3 h-32 w-full rounded-lg object-cover"
-                />
-              )}
-              <h3 className="font-medium">{playlist.name}</h3>
-              <p className="text-sm text-zinc-400">
-                {playlist.track_count} tracks · {playlist.owner}
-              </p>
-            </article>
-          ))}
-        </div>
+        <PlaylistBrowser />
       </section>
 
       <section className="rounded-xl border border-white/10 bg-white/5 p-6">

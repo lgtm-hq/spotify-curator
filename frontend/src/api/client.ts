@@ -38,9 +38,26 @@ export interface PlaylistSummary {
   name: string;
   description: string | null;
   owner: string;
+  owner_id: string;
   track_count: number;
   image_url: string | null;
   public: boolean;
+  can_edit: boolean;
+}
+
+export interface TrackSummary {
+  id: string;
+  name: string;
+  artists: { id: string | null; name: string }[];
+  uri: string;
+  is_playable: boolean;
+  album: string | null;
+  album_image_url: string | null;
+  duration_ms: number;
+}
+
+export interface PlaylistDetail extends PlaylistSummary {
+  tracks: TrackSummary[];
 }
 
 export interface TasteProfile {
@@ -126,6 +143,20 @@ export const api = {
     window.location.href = "/auth/login";
   },
   playlists: () => request<PlaylistSummary[]>("/playlists"),
+  playlist: (playlistId: string) => request<PlaylistDetail>(`/playlists/${playlistId}`),
+  playlistRemoveTracks: (playlistId: string, trackIds: string[]) =>
+    request<{ removed: number }>(`/playlists/${playlistId}/tracks/remove`, {
+      method: "POST",
+      body: JSON.stringify({ track_ids: trackIds }),
+    }),
+  playlistReorderTracks: (
+    playlistId: string,
+    payload: { range_start: number; insert_before: number; range_length?: number },
+  ) =>
+    request<{ status: string }>(`/playlists/${playlistId}/tracks/reorder`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   taste: (refresh = false) => request<TasteProfile>(`/taste?refresh=${refresh}`),
   tasteRefresh: () =>
     request<TasteProfile>("/taste/refresh", {

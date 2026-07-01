@@ -21,6 +21,7 @@ class TrackSummary(BaseModel):
     uri: str
     is_playable: bool = True
     album: str | None = None
+    album_image_url: str | None = None
     duration_ms: int = 0
 
 
@@ -31,9 +32,11 @@ class PlaylistSummary(BaseModel):
     name: str
     description: str | None = None
     owner: str
+    owner_id: str = ""
     track_count: int
     image_url: str | None = None
     public: bool = False
+    can_edit: bool = False
 
 
 class PlaylistDetail(PlaylistSummary):
