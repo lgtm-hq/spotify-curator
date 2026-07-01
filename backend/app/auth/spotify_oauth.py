@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-import secrets
 from datetime import UTC, datetime, timedelta
 from typing import cast
 from urllib.parse import urlencode
 
 import httpx
+import jwt
+from jwt.exceptions import InvalidTokenError
 
 from app.config import get_settings
 
@@ -15,23 +16,32 @@ AUTH_URL = "https://accounts.spotify.com/authorize"
 SPOTIFY_TOKEN_ENDPOINT = (  # nosec B105 - public OAuth endpoint URL, not a credential
     "https://accounts.spotify.com/api/token"
 )
-
-_oauth_states: dict[str, datetime] = {}
+STATE_ALGORITHM = "HS256"
+STATE_MINUTES = 10
 
 
 def generate_state() -> str:
-    """Generate and store a CSRF state token."""
-    state = secrets.token_urlsafe(32)
-    _oauth_states[state] = datetime.now(UTC)
-    return state
+    """Generate a signed CSRF state token."""
+    settings = get_settings()
+    payload = {
+        "purpose": "spotify_oauth",
+        "exp": datetime.now(UTC) + timedelta(minutes=STATE_MINUTES),
+    }
+    return jwt.encode(payload, settings.secret_key, algorithm=STATE_ALGORITHM)
 
 
 def validate_state(state: str) -> bool:
-    """Validate and consume a CSRF state token."""
-    created = _oauth_states.pop(state, None)
-    if created is None:
+    """Validate a signed CSRF state token."""
+    settings = get_settings()
+    try:
+        payload = jwt.decode(
+            state,
+            settings.secret_key,
+            algorithms=[STATE_ALGORITHM],
+        )
+    except InvalidTokenError:
         return False
-    return datetime.now(UTC) - created < timedelta(minutes=10)
+    return payload.get("purpose") == "spotify_oauth"
 
 
 def build_auth_url(*, state: str) -> str:

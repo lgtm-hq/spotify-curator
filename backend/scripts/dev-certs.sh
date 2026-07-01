@@ -15,4 +15,4 @@ mkcert -key-file "$CERT_DIR/key.pem" -cert-file "$CERT_DIR/cert.pem" \
 
 echo "Certs written to $CERT_DIR"
 echo "Add this Redirect URI in Spotify Developer Dashboard:"
-echo "  https://127.0.0.1:8000/auth/callback"
+echo "  https://localhost:8000/auth/callback"

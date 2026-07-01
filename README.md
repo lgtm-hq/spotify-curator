@@ -22,7 +22,7 @@ Self-hosted Spotify playlist management tool with cleanup, mood-based curation, 
 Spotify no longer accepts insecure (`http://`) redirect URIs. For local development, use:
 
 ```
-https://127.0.0.1:8000/auth/callback
+https://localhost:8000/auth/callback
 ```
 
 Add that in your [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) under **Redirect URIs**.

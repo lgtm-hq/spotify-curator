@@ -65,20 +65,11 @@ def get_current_user(request: Request) -> str:
 async def login() -> RedirectResponse:
     """Redirect to Spotify authorization."""
     state = generate_state()
-    response = RedirectResponse(build_auth_url(state=state))
-    response.set_cookie(
-        "oauth_state",
-        state,
-        httponly=True,
-        max_age=600,
-        samesite="lax",
-    )
-    return response
+    return RedirectResponse(build_auth_url(state=state))
 
 
 @router.get("/callback")
 async def callback(
-    request: Request,
     code: str | None = None,
     state: str | None = None,
     error: str | None = None,
@@ -91,8 +82,7 @@ async def callback(
     if not code or not state:
         raise HTTPException(status_code=400, detail="Missing code or state")
 
-    cookie_state = request.cookies.get("oauth_state")
-    if not cookie_state or cookie_state != state or not validate_state(state):
+    if not validate_state(state):
         raise HTTPException(status_code=400, detail="Invalid OAuth state")
 
     token_data = await exchange_code(code=code)
@@ -121,8 +111,8 @@ async def callback(
         httponly=True,
         max_age=SESSION_HOURS * 3600,
         samesite="lax",
+        path="/",
     )
-    response.delete_cookie("oauth_state")
     return response
 
 

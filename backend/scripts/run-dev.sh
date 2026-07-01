@@ -11,6 +11,14 @@ if [[ ! -f "$CERT_DIR/cert.pem" || ! -f "$CERT_DIR/key.pem" ]]; then
 fi
 
 cd "$PROJECT_ROOT"
+
+# Shell-level DATABASE_URL (e.g. from other projects) overrides pydantic .env.
+unset DATABASE_URL
+set -a
+# shellcheck source=/dev/null
+source "$PROJECT_ROOT/backend/.env"
+set +a
+
 exec uv run uvicorn app.main:app \
 	--reload \
 	--host 127.0.0.1 \
