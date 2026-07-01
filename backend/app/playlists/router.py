@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.orm import Session
+from spotipy.exceptions import SpotifyException
 
 from app.auth.router import get_current_user, get_db
 from app.playlists.models import PlaylistDetail, PlaylistSummary
@@ -17,6 +21,7 @@ from app.playlists.service import (
 from app.spotify_client import get_spotify_client
 
 router = APIRouter(prefix="/playlists", tags=["playlists"])
+logger = logging.getLogger(__name__)
 
 
 class RemoveTracksRequest(BaseModel):
@@ -31,6 +36,20 @@ class ReorderTracksRequest(BaseModel):
     range_start: int
     insert_before: int
     range_length: int = 1
+
+
+def _playlist_http_error(exc: Exception, *, action: str) -> HTTPException:
+    """Translate playlist failures into HTTP errors."""
+    if isinstance(exc, HTTPException):
+        return exc
+    if isinstance(exc, SpotifyException):
+        logger.error("Spotify error during playlist %s: %s", action, exc)
+        return HTTPException(status_code=502, detail=f"Spotify API error: {exc}")
+    if isinstance(exc, PydanticValidationError):
+        logger.exception("Playlist %s response validation failed", action)
+        return HTTPException(status_code=500, detail="Invalid playlist data from Spotify")
+    logger.exception("Playlist %s failed", action)
+    return HTTPException(status_code=500, detail="Failed to load playlist")
 
 
 @router.get("", response_model=list[PlaylistSummary])
@@ -50,8 +69,11 @@ async def get_playlist_detail(
     db: Session = Depends(get_db),
 ) -> PlaylistDetail:
     """Get playlist with tracks."""
-    sp = await get_spotify_client(db)
-    return get_playlist(sp, playlist_id=playlist_id, current_user_id=user_id)
+    try:
+        sp = await get_spotify_client(db)
+        return get_playlist(sp, playlist_id=playlist_id, current_user_id=user_id)
+    except Exception as exc:
+        raise _playlist_http_error(exc, action="load") from exc
 
 
 @router.post("/{playlist_id}/tracks/remove")

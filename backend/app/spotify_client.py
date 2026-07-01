@@ -73,3 +73,19 @@ def paginate(
             break
         offset += limit
     return results
+
+
+def paginate_playlist_items(
+    sp: spotipy.Spotify,
+    *,
+    playlist_id: str,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    """Paginate playlist track items."""
+    return paginate(
+        sp,
+        "playlist_items",
+        playlist_id=playlist_id,
+        limit=limit,
+        additional_types=["track"],
+    )

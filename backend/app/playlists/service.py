@@ -12,7 +12,12 @@ from app.playlists.models import (
     TrackArtist,
     TrackSummary,
 )
-from app.spotify_client import paginate, playlist_entry_track, playlist_track_total
+from app.spotify_client import (
+    paginate,
+    paginate_playlist_items,
+    playlist_entry_track,
+    playlist_track_total,
+)
 
 
 def _map_track(item: dict[str, Any]) -> TrackSummary | None:
@@ -25,20 +30,20 @@ def _map_track(item: dict[str, Any]) -> TrackSummary | None:
     ):
         return None
     artists = [
-        TrackArtist(id=a.get("id"), name=a.get("name", "Unknown"))
+        TrackArtist(id=a.get("id"), name=str(a.get("name") or "Unknown"))
         for a in track.get("artists", [])
     ]
     album = track.get("album") or {}
     images = album.get("images") or []
     return TrackSummary(
-        id=track["id"],
-        name=track.get("name", "Unknown"),
+        id=str(track["id"]),
+        name=str(track.get("name") or "Unknown"),
         artists=artists,
-        uri=track.get("uri", f"spotify:track:{track['id']}"),
-        is_playable=track.get("is_playable", True),
+        uri=str(track.get("uri") or f"spotify:track:{track['id']}"),
+        is_playable=track.get("is_playable") is not False,
         album=album.get("name"),
         album_image_url=images[-1]["url"] if images else None,
-        duration_ms=track.get("duration_ms", 0),
+        duration_ms=int(track.get("duration_ms") or 0),
     )
 
 
@@ -52,14 +57,14 @@ def _summary_from_meta(
     owner = meta.get("owner") or {}
     owner_id = str(owner.get("id", ""))
     return PlaylistSummary(
-        id=meta["id"],
-        name=meta.get("name", "Untitled"),
-        description=meta.get("description"),
-        owner=owner.get("display_name", "Unknown"),
+        id=str(meta["id"]),
+        name=str(meta.get("name") or "Untitled"),
+        description=meta.get("description") or None,
+        owner=str(owner.get("display_name") or owner.get("id") or "Unknown"),
         owner_id=owner_id,
         track_count=playlist_track_total(meta),
         image_url=images[0]["url"] if images else None,
-        public=meta.get("public", False),
+        public=bool(meta.get("public", False)),
         can_edit=bool(current_user_id and owner_id == current_user_id),
     )
 
@@ -85,7 +90,7 @@ def get_playlist(
 ) -> PlaylistDetail:
     """Fetch playlist with all tracks."""
     meta = sp.playlist(playlist_id)
-    track_items = paginate(sp, "playlist_items", playlist_id=playlist_id)
+    track_items = paginate_playlist_items(sp, playlist_id=playlist_id)
     tracks: list[TrackSummary] = []
     for item in track_items:
         mapped = _map_track(item)
@@ -93,7 +98,7 @@ def get_playlist(
             tracks.append(mapped)
     summary = _summary_from_meta(meta, current_user_id=current_user_id)
     return PlaylistDetail(
-        **summary.model_dump(),
+        **summary.model_dump(exclude={"track_count"}),
         track_count=summary.track_count or len(tracks),
         tracks=tracks,
     )
@@ -109,7 +114,7 @@ def remove_tracks(
     if not track_ids:
         return 0
 
-    items = paginate(sp, "playlist_items", playlist_id=playlist_id)
+    items = paginate_playlist_items(sp, playlist_id=playlist_id)
     remove_ids = set(track_ids)
     uris = [
         track["uri"]
