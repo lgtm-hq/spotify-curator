@@ -16,7 +16,7 @@ from app.curate.prompt_engine import (
     start_session,
 )
 from app.spotify_client import get_spotify_client
-from app.taste.engine import build_taste_profile
+from app.taste.engine import build_taste_profile, load_cached_taste_profile
 
 router = APIRouter(prefix="/curate", tags=["curate"])
 
@@ -47,8 +47,10 @@ async def curate_start(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Start mood concierge interview."""
-    sp = await get_spotify_client(db)
-    taste = build_taste_profile(sp, db=db)
+    taste = load_cached_taste_profile(db)
+    if taste is None:
+        sp = await get_spotify_client(db)
+        taste = build_taste_profile(sp, db=db)
     return start_session(db=db, taste_profile=taste)
 
 
@@ -59,8 +61,10 @@ async def curate_answer(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Answer interview question."""
-    sp = await get_spotify_client(db)
-    taste = build_taste_profile(sp, db=db)
+    taste = load_cached_taste_profile(db)
+    if taste is None:
+        sp = await get_spotify_client(db)
+        taste = build_taste_profile(sp, db=db)
     try:
         return answer_session(
             db=db,

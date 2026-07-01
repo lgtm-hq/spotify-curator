@@ -98,11 +98,9 @@ def build_taste_profile(
     force_refresh: bool = False,
 ) -> TasteProfile:
     """Build or load cached taste profile."""
-    if not force_refresh:
-        record = db.get(TasteProfileRecord, 1)
-        if record is not None:
-            data = json.loads(record.profile_json)
-            return TasteProfile.model_validate(data)
+    cached = load_cached_taste_profile(db)
+    if cached is not None and not force_refresh:
+        return cached
 
     data = _collect_listening_data(sp)
     ai_config = load_ai_config()
@@ -158,3 +156,12 @@ def build_taste_profile(
     record.updated_at = utcnow()
     db.commit()
     return profile
+
+
+def load_cached_taste_profile(db: Session) -> TasteProfile | None:
+    """Return cached taste profile when available."""
+    record = db.get(TasteProfileRecord, 1)
+    if record is None:
+        return None
+    data = json.loads(record.profile_json)
+    return TasteProfile.model_validate(data)
