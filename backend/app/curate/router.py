@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -15,6 +15,7 @@ from app.curate.prompt_engine import (
     save_playlist_to_spotify,
     start_session,
 )
+from app.errors import raise_curate_http_error
 from app.spotify_client import get_spotify_client
 from app.taste.engine import build_taste_profile, load_cached_taste_profile
 
@@ -47,11 +48,14 @@ async def curate_start(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Start mood concierge interview."""
-    taste = load_cached_taste_profile(db)
-    if taste is None:
-        sp = await get_spotify_client(db)
-        taste = build_taste_profile(sp, db=db)
-    return start_session(db=db, taste_profile=taste)
+    try:
+        taste = load_cached_taste_profile(db)
+        if taste is None:
+            sp = await get_spotify_client(db)
+            taste = build_taste_profile(sp, db=db)
+        return start_session(db=db, taste_profile=taste)
+    except Exception as exc:
+        raise_curate_http_error(exc, action="start")
 
 
 @router.post("/answer")
@@ -61,19 +65,19 @@ async def curate_answer(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Answer interview question."""
-    taste = load_cached_taste_profile(db)
-    if taste is None:
-        sp = await get_spotify_client(db)
-        taste = build_taste_profile(sp, db=db)
     try:
+        taste = load_cached_taste_profile(db)
+        if taste is None:
+            sp = await get_spotify_client(db)
+            taste = build_taste_profile(sp, db=db)
         return answer_session(
             db=db,
             session_id=body.session_id,
             answer=body.answer,
             taste_profile=taste,
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise_curate_http_error(exc, action="answer")
 
 
 @router.post("/build")
@@ -83,9 +87,9 @@ async def curate_build(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Build playlist from interview brief."""
-    sp = await get_spotify_client(db)
-    taste = build_taste_profile(sp, db=db)
     try:
+        sp = await get_spotify_client(db)
+        taste = load_cached_taste_profile(db) or build_taste_profile(sp, db=db)
         return build_playlist_from_brief(
             sp=sp,
             db=db,
@@ -93,8 +97,8 @@ async def curate_build(
             taste_profile=taste,
             feedback=body.feedback,
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise_curate_http_error(exc, action="build")
 
 
 @router.post("/save")
@@ -104,8 +108,8 @@ async def curate_save(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Save curated playlist to Spotify."""
-    sp = await get_spotify_client(db)
     try:
+        sp = await get_spotify_client(db)
         return save_playlist_to_spotify(sp=sp, db=db, session_id=body.session_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise_curate_http_error(exc, action="save")
