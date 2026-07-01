@@ -80,6 +80,44 @@ export interface AccountResponse {
   };
 }
 
+export interface CleanupIssue {
+  kind: string;
+  track_ids: string[];
+  reason: string;
+}
+
+export interface CleanupCluster {
+  name: string;
+  track_ids: string[];
+  cluster_label: string;
+}
+
+export interface CleanupAnalysis {
+  playlist_id: string;
+  total_tracks: number;
+  duplicates: CleanupIssue[];
+  unavailable: CleanupIssue[];
+  skip_heavy: CleanupIssue[];
+  clusters: CleanupCluster[];
+}
+
+export interface CleanupSuggestion {
+  playlist_id: string;
+  playlist_name: string;
+  priority?: "high" | "medium" | "low";
+  kind?: string;
+  title: string;
+  description: string;
+  recommended_action: string;
+}
+
+export interface CleanupAiSuggestResult {
+  summary: string;
+  scanned_playlists: number;
+  total_playlists: number;
+  suggestions: CleanupSuggestion[];
+}
+
 export const api = {
   me: () => request<MeResponse>("/auth/me"),
   account: () => request<AccountResponse>("/auth/account"),
@@ -94,24 +132,11 @@ export const api = {
       method: "POST",
     }),
   cleanupAnalyze: (playlistId: string) =>
-    request<Record<string, unknown>>(`/cleanup/analyze/${playlistId}`, {
+    request<CleanupAnalysis>(`/cleanup/analyze/${playlistId}`, {
       method: "POST",
     }),
   cleanupAiSuggest: () =>
-    request<{
-      summary: string;
-      scanned_playlists: number;
-      total_playlists: number;
-      suggestions: {
-        playlist_id: string;
-        playlist_name: string;
-        priority?: "high" | "medium" | "low";
-        kind?: string;
-        title: string;
-        description: string;
-        recommended_action: string;
-      }[];
-    }>("/cleanup/ai/suggest", { method: "POST" }),
+    request<CleanupAiSuggestResult>("/cleanup/ai/suggest", { method: "POST" }),
   cleanupRemove: (playlistId: string, trackIds: string[]) =>
     request<{ removed: number }>("/cleanup/apply/remove", {
       method: "POST",
