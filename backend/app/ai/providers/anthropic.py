@@ -138,7 +138,6 @@ class AnthropicProvider(BaseAIProvider):
             )
         cmd = [
             binary,
-            "--bare",
             "-p",
             prompt,
             "--output-format",

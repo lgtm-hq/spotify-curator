@@ -2,9 +2,9 @@
 ai:
   enabled: true
   provider: anthropic
-  transport: api
+  transport: cli
   model: claude-sonnet-4-20250514
-  api_timeout: 120
+  api_timeout: 600
   max_tokens: 4096
   max_retries: 3
   fallback_models: []
