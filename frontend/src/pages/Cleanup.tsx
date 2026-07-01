@@ -5,9 +5,7 @@ import { api } from "../api/client";
 export function Cleanup() {
   const playlists = useQuery({ queryKey: ["playlists"], queryFn: api.playlists });
   const [selectedId, setSelectedId] = useState("");
-  const [analysis, setAnalysis] = useState<Record<string, unknown> | null>(
-    null,
-  );
+  const [analysis, setAnalysis] = useState<Record<string, unknown> | null>(null);
 
   const analyze = useMutation({
     mutationFn: (id: string) => api.cleanupAnalyze(id),
@@ -20,29 +18,18 @@ export function Cleanup() {
   });
 
   const split = useMutation({
-    mutationFn: ({
-      playlistId,
-      proposals,
-    }: {
-      playlistId: string;
-      proposals: unknown[];
-    }) => api.cleanupSplit(playlistId, proposals),
+    mutationFn: ({ playlistId, proposals }: { playlistId: string; proposals: unknown[] }) =>
+      api.cleanupSplit(playlistId, proposals),
   });
 
   const duplicateIds = [
-    ...((analysis?.duplicates as { track_ids: string[] }[]) ?? []).flatMap(
-      (d) => d.track_ids,
-    ),
+    ...((analysis?.duplicates as { track_ids: string[] }[]) ?? []).flatMap((d) => d.track_ids),
   ];
   const unavailableIds = [
-    ...((analysis?.unavailable as { track_ids: string[] }[]) ?? []).flatMap(
-      (d) => d.track_ids,
-    ),
+    ...((analysis?.unavailable as { track_ids: string[] }[]) ?? []).flatMap((d) => d.track_ids),
   ];
   const skipIds = [
-    ...((analysis?.skip_heavy as { track_ids: string[] }[]) ?? []).flatMap(
-      (d) => d.track_ids,
-    ),
+    ...((analysis?.skip_heavy as { track_ids: string[] }[]) ?? []).flatMap((d) => d.track_ids),
   ];
   const clusters =
     (analysis?.clusters as {
@@ -79,16 +66,12 @@ export function Cleanup() {
 
       {analysis && (
         <div className="space-y-4">
-          <p className="text-zinc-400">
-            {String(analysis.total_tracks)} tracks analyzed
-          </p>
+          <p className="text-zinc-400">{String(analysis.total_tracks)} tracks analyzed</p>
 
           <CleanupSection
             title="Duplicates"
             count={duplicateIds.length}
-            onApply={() =>
-              remove.mutate({ playlistId: selectedId, trackIds: duplicateIds })
-            }
+            onApply={() => remove.mutate({ playlistId: selectedId, trackIds: duplicateIds })}
           />
           <CleanupSection
             title="Unavailable"
@@ -103,9 +86,7 @@ export function Cleanup() {
           <CleanupSection
             title="Skip-heavy"
             count={skipIds.length}
-            onApply={() =>
-              remove.mutate({ playlistId: selectedId, trackIds: skipIds })
-            }
+            onApply={() => remove.mutate({ playlistId: selectedId, trackIds: skipIds })}
           />
 
           {clusters.length > 0 && (
@@ -120,9 +101,7 @@ export function Cleanup() {
               </ul>
               <button
                 type="button"
-                onClick={() =>
-                  split.mutate({ playlistId: selectedId, proposals: clusters })
-                }
+                onClick={() => split.mutate({ playlistId: selectedId, proposals: clusters })}
                 className="rounded-lg border border-emerald-500/40 px-4 py-2 text-emerald-300"
               >
                 Create split playlists

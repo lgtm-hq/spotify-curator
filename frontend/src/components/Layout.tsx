@@ -16,12 +16,8 @@ export function Layout() {
       <header className="border-b border-white/10 bg-black/40 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div>
-            <h1 className="text-xl font-semibold text-emerald-400">
-              Spotify Curator
-            </h1>
-            <p className="text-sm text-zinc-400">
-              Cleanup, curate, and discover music
-            </p>
+            <h1 className="text-xl font-semibold text-emerald-400">Spotify Curator</h1>
+            <p className="text-sm text-zinc-400">Cleanup, curate, and discover music</p>
           </div>
           <nav className="flex gap-2">
             {nav.map((item) => (

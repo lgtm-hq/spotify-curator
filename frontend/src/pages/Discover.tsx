@@ -35,8 +35,7 @@ export function Discover() {
         <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-6">
           <h3 className="text-xl font-semibold">{generate.data.name}</h3>
           <p className="text-sm text-zinc-400">
-            {generate.data.track_count} tracks · Playlist ID:{" "}
-            {generate.data.playlist_id}
+            {generate.data.track_count} tracks · Playlist ID: {generate.data.playlist_id}
           </p>
           <p className="mt-2 text-zinc-300">{generate.data.reasoning}</p>
         </div>
@@ -51,9 +50,7 @@ export function Discover() {
               className="rounded-lg border border-white/10 bg-white/5 px-4 py-3"
             >
               <p className="font-medium">{run.name}</p>
-              <p className="text-sm text-zinc-400">
-                {new Date(run.created_at).toLocaleString()}
-              </p>
+              <p className="text-sm text-zinc-400">{new Date(run.created_at).toLocaleString()}</p>
             </div>
           ))}
         </div>

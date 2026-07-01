@@ -18,9 +18,7 @@ export function Dashboard() {
     return (
       <div className="rounded-xl border border-white/10 bg-white/5 p-8 text-center">
         <h2 className="mb-2 text-2xl font-semibold">Welcome</h2>
-        <p className="mb-6 text-zinc-400">
-          Connect your Spotify account to get started.
-        </p>
+        <p className="mb-6 text-zinc-400">Connect your Spotify account to get started.</p>
         <button
           type="button"
           onClick={() => api.login()}
@@ -39,10 +37,7 @@ export function Dashboard() {
         {playlists.isLoading && <p className="text-zinc-400">Loading...</p>}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {(playlists.data ?? []).map((playlist) => (
-            <article
-              key={playlist.id}
-              className="rounded-xl border border-white/10 bg-white/5 p-4"
-            >
+            <article key={playlist.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
               {playlist.image_url && (
                 <img
                   src={playlist.image_url}

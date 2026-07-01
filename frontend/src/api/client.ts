@@ -40,8 +40,7 @@ export const api = {
     window.location.href = "/auth/login";
   },
   playlists: () => request<PlaylistSummary[]>("/playlists"),
-  taste: (refresh = false) =>
-    request<TasteProfile>(`/taste?refresh=${refresh}`),
+  taste: (refresh = false) => request<TasteProfile>(`/taste?refresh=${refresh}`),
   cleanupAnalyze: (playlistId: string) =>
     request<Record<string, unknown>>(`/cleanup/analyze/${playlistId}`, {
       method: "POST",
@@ -89,13 +88,10 @@ export const api = {
       body: JSON.stringify({ session_id: sessionId, feedback }),
     }),
   curateSave: (sessionId: string) =>
-    request<{ playlist_id: string; name: string; tracks: number }>(
-      "/curate/save",
-      {
-        method: "POST",
-        body: JSON.stringify({ session_id: sessionId }),
-      },
-    ),
+    request<{ playlist_id: string; name: string; tracks: number }>("/curate/save", {
+      method: "POST",
+      body: JSON.stringify({ session_id: sessionId }),
+    }),
   discoverGenerate: () =>
     request<{
       run_id: string;

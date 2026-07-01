@@ -38,10 +38,7 @@ export function Curate() {
     onSuccess: (data) => {
       setDone(Boolean(data.done));
       if (data.question) {
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: data.question ?? "" },
-        ]);
+        setMessages((prev) => [...prev, { role: "assistant", content: data.question ?? "" }]);
       }
       setOptions(data.options ?? []);
       if (data.done && sessionId) {
@@ -51,13 +48,8 @@ export function Curate() {
   });
 
   const build = useMutation({
-    mutationFn: ({
-      sessionId,
-      feedback,
-    }: {
-      sessionId: string;
-      feedback?: string;
-    }) => api.curateBuild(sessionId, feedback),
+    mutationFn: ({ sessionId, feedback }: { sessionId: string; feedback?: string }) =>
+      api.curateBuild(sessionId, feedback),
     onSuccess: (data) => setProposal(data),
   });
 
@@ -136,10 +128,7 @@ export function Curate() {
               placeholder="Type your answer..."
               className="flex-1 rounded-lg border border-white/10 bg-black px-4 py-2"
             />
-            <button
-              type="submit"
-              className="rounded-lg bg-emerald-500 px-4 py-2 text-black"
-            >
+            <button type="submit" className="rounded-lg bg-emerald-500 px-4 py-2 text-black">
               Send
             </button>
           </form>
@@ -151,9 +140,7 @@ export function Curate() {
           <h3 className="mb-2 text-xl font-semibold">{proposal.name}</h3>
           <p className="mb-2 text-zinc-300">{proposal.description}</p>
           <p className="mb-4 text-sm text-zinc-400">{proposal.reasoning}</p>
-          <p className="mb-4 text-sm">
-            {proposal.track_uris.length} tracks selected
-          </p>
+          <p className="mb-4 text-sm">{proposal.track_uris.length} tracks selected</p>
           <div className="flex gap-3">
             <button
               type="button"
@@ -165,17 +152,14 @@ export function Curate() {
             <button
               type="button"
               onClick={() =>
-                sessionId &&
-                build.mutate({ sessionId, feedback: "more upbeat, less pop" })
+                sessionId && build.mutate({ sessionId, feedback: "more upbeat, less pop" })
               }
               className="rounded-lg border border-white/10 px-4 py-2"
             >
               Refine
             </button>
           </div>
-          {save.isSuccess && (
-            <p className="mt-3 text-emerald-400">Playlist saved!</p>
-          )}
+          {save.isSuccess && <p className="mt-3 text-emerald-400">Playlist saved!</p>}
         </div>
       )}
     </div>

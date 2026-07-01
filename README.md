@@ -12,9 +12,10 @@ Self-hosted Spotify playlist management tool with cleanup, mood-based curation, 
 ## Prerequisites
 
 1. Spotify Developer app — **HTTPS redirect URI required** (Spotify rejects `http://`)
-2. Python 3.11+
+2. Python 3.13+ and [uv](https://docs.astral.sh/uv/)
 3. Node.js 20+
 4. [mkcert](https://github.com/FiloSottile/mkcert) for local HTTPS (`brew install mkcert`)
+5. Global [lintro](https://github.com/lgtm-hq/py-lintro) for lint/review (`uv tool install lintro`)
 
 ## Spotify Redirect URI
 
@@ -26,30 +27,22 @@ https://127.0.0.1:8000/auth/callback
 
 Add that in your [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) under **Redirect URIs**.
 
-If you deploy to production, also add:
-
-```
-https://127.0.0.1/auth/callback
-```
-
 ## Setup
 
 ### Backend
 
 ```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-# Fill in SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, and AI keys
+cd spotify-curator
+uv sync --group dev
+cp backend/.env.example backend/.env
+# Fill in SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SECRET_KEY, and AI keys
 
 # One-time: generate trusted local TLS certs
-chmod +x scripts/dev-certs.sh scripts/run-dev.sh
-./scripts/dev-certs.sh
+chmod +x backend/scripts/dev-certs.sh backend/scripts/run-dev.sh
+./backend/scripts/dev-certs.sh
 
 # Run backend over HTTPS
-./scripts/run-dev.sh
+./backend/scripts/run-dev.sh
 ```
 
 ### Frontend
@@ -62,19 +55,29 @@ npm run dev
 
 Open http://localhost:5173 and click **Connect Spotify**.
 
-The Vite dev server proxies API calls to `https://127.0.0.1:8000` (self-signed certs are accepted in dev).
+## Development
+
+```bash
+# Sync dev tools (ruff, mypy, bandit, …) into .venv
+uv sync --group dev
+
+# Format and lint — use global lintro with project .venv on PATH
+# (install: uv tool install lintro)
+export PATH="$(pwd)/.venv/bin:$PATH"
+lintro fmt
+lintro chk   # must pass with 0 issues
+
+# Type-check
+uv run mypy backend/app
+
+# AI diff review (global lintro; requires ai.enabled in .lintro-config.yaml)
+lintro review --uncommitted
+```
 
 ## Configuration
 
-Edit `backend/config.yaml` for AI provider settings:
-
-```yaml
-ai:
-  enabled: true
-  provider: anthropic
-  transport: api
-  model: claude-sonnet-4-20250514
-```
+- `backend/.env` — Spotify credentials and secrets
+- `backend/config.yaml` — AI provider settings (`provider`, `transport`, `model`)
 
 Set `SPOTIFY_REDIRECT_URI` in `.env` to match exactly what you registered in the Spotify dashboard.
 
