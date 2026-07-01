@@ -35,6 +35,14 @@ export function Dashboard() {
       <section>
         <h2 className="mb-4 text-2xl font-semibold">Your Playlists</h2>
         {playlists.isLoading && <p className="text-zinc-400">Loading...</p>}
+        {playlists.isError && (
+          <p className="text-red-400">
+            Failed to load playlists. Try refreshing or reconnecting Spotify.
+          </p>
+        )}
+        {!playlists.isLoading && !playlists.isError && (playlists.data?.length ?? 0) === 0 && (
+          <p className="text-zinc-400">No playlists found.</p>
+        )}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {(playlists.data ?? []).map((playlist) => (
             <article key={playlist.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
