@@ -1,0 +1,63 @@
+---
+# Lintro Configuration — https://github.com/lgtm-hq/py-lintro
+#
+# AI/review block mirrors ~/.lintro-config.yaml (cursor + cli, balanced review).
+# Project-level config wins over global; not merged.
+
+enforce:
+  line_length: 88
+  target_python: "py313"
+
+execution:
+  enabled_tools: []
+  tool_order: "priority"
+  fail_fast: false
+  parallel: true
+  auto_install_deps: true
+
+defaults:
+  mypy:
+    strict: true
+    ignore_missing_imports: true
+
+tools:
+  ruff:
+    enabled: true
+  black:
+    enabled: true
+  mypy:
+    enabled: true
+  markdownlint:
+    enabled: true
+  yamllint:
+    enabled: true
+  bandit:
+    enabled: true
+  pydoclint:
+    enabled: true
+  prettier:
+    enabled: true
+
+# AI — same defaults as ~/.lintro-config.yaml
+ai:
+  enabled: true
+  provider: cursor
+  transport: cli
+  # model: auto                        # Cursor auto model selection
+  # api_key_env: CURSOR_API_KEY        # or `agent login` for keychain auth
+  max_cost_usd: 2.00
+  show_cost_estimate: true
+  max_tokens: 4096
+  max_retries: 2
+  api_timeout: 600.0
+  default_fix: false
+  auto_apply: false
+
+review:
+  strictness: balanced
+  depth: 1
+  sensitivity:
+    migration_notes: null
+    doc_drift: null
+    test_gaps: null
+  force_semantic_chunking: false
