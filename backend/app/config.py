@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     spotify_client_id: str = ""
     spotify_client_secret: str = ""
-    spotify_redirect_uri: str = "http://localhost:8000/auth/callback"
+    spotify_redirect_uri: str = "https://127.0.0.1:8000/auth/callback"
     secret_key: str = "change-me"
     frontend_url: str = "http://localhost:5173"
     database_url: str = "sqlite:///./spotify_curator.db"

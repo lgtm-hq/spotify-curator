@@ -11,9 +11,26 @@ Self-hosted Spotify playlist management tool with cleanup, mood-based curation, 
 
 ## Prerequisites
 
-1. Spotify Developer app with redirect URI: `http://localhost:8000/auth/callback`
+1. Spotify Developer app — **HTTPS redirect URI required** (Spotify rejects `http://`)
 2. Python 3.11+
 3. Node.js 20+
+4. [mkcert](https://github.com/FiloSottile/mkcert) for local HTTPS (`brew install mkcert`)
+
+## Spotify Redirect URI
+
+Spotify no longer accepts insecure (`http://`) redirect URIs. For local development, use:
+
+```
+https://127.0.0.1:8000/auth/callback
+```
+
+Add that in your [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) under **Redirect URIs**.
+
+If you deploy to production, also add:
+
+```
+https://127.0.0.1/auth/callback
+```
 
 ## Setup
 
@@ -26,7 +43,13 @@ source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 # Fill in SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, and AI keys
-uvicorn app.main:app --reload --port 8000
+
+# One-time: generate trusted local TLS certs
+chmod +x scripts/dev-certs.sh scripts/run-dev.sh
+./scripts/dev-certs.sh
+
+# Run backend over HTTPS
+./scripts/run-dev.sh
 ```
 
 ### Frontend
@@ -39,6 +62,8 @@ npm run dev
 
 Open http://localhost:5173 and click **Connect Spotify**.
 
+The Vite dev server proxies API calls to `https://127.0.0.1:8000` (self-signed certs are accepted in dev).
+
 ## Configuration
 
 Edit `backend/config.yaml` for AI provider settings:
@@ -50,6 +75,8 @@ ai:
   transport: api
   model: claude-sonnet-4-20250514
 ```
+
+Set `SPOTIFY_REDIRECT_URI` in `.env` to match exactly what you registered in the Spotify dashboard.
 
 ## API Overview
 
