@@ -19,6 +19,7 @@ from app.ai.json_response import load_json_object
 from app.ai.prompts.discover import DISCOVER_SYSTEM, DISCOVER_USER_TEMPLATE
 from app.config import DEFAULT_CONFIG_FILE
 from app.db import DiscoverRunRecord, dumps_json, utcnow
+from app.spotify_candidates import get_recommendation_candidates
 from app.taste.engine import build_taste_profile
 from app.taste.models import TasteProfile
 
@@ -42,24 +43,7 @@ def generate_discovery_playlist(
     if taste_profile is None:
         taste_profile = build_taste_profile(sp, db=db)
 
-    seeds: dict[str, Any] = {}
-    if taste_profile.top_track_ids:
-        seeds["seed_tracks"] = taste_profile.top_track_ids[:3]
-    if taste_profile.top_artist_ids:
-        seeds["seed_artists"] = taste_profile.top_artist_ids[:2]
-    if taste_profile.seed_genres:
-        seeds["seed_genres"] = taste_profile.seed_genres[:2]
-
-    recs = sp.recommendations(limit=50, **seeds) if seeds else {"tracks": []}
-    candidates = [
-        {
-            "id": t["id"],
-            "uri": t["uri"],
-            "name": t["name"],
-            "artists": [a["name"] for a in t.get("artists", [])],
-        }
-        for t in recs.get("tracks", [])
-    ]
+    candidates = get_recommendation_candidates(sp, taste_profile, limit=50)
 
     discover_cfg = _load_discover_config()
     prefix = discover_cfg.get("playlist_name_prefix", "Discover Weekly")

@@ -21,6 +21,7 @@ from app.ai.prompts.curate import (
     REFINE_TEMPLATE,
 )
 from app.db import CurateSessionRecord, dumps_json, loads_json, utcnow
+from app.spotify_candidates import get_recommendation_candidates
 from app.taste.models import TasteProfile
 
 MAX_ROUNDS = 5
@@ -192,24 +193,11 @@ def build_playlist_from_brief(
         msg = "Session not ready for playlist build"
         raise ValueError(msg)
 
-    seeds: dict[str, Any] = {}
-    if taste_profile.top_track_ids:
-        seeds["seed_tracks"] = taste_profile.top_track_ids[:2]
-    if taste_profile.top_artist_ids:
-        seeds["seed_artists"] = taste_profile.top_artist_ids[:2]
-    if taste_profile.seed_genres:
-        seeds["seed_genres"] = taste_profile.seed_genres[:1]
+    candidates = get_recommendation_candidates(sp, taste_profile, limit=50)
 
-    recs = sp.recommendations(limit=50, **seeds) if seeds else {"tracks": []}
-    candidates = [
-        {
-            "id": t["id"],
-            "uri": t["uri"],
-            "name": t["name"],
-            "artists": [a["name"] for a in t.get("artists", [])],
-        }
-        for t in recs.get("tracks", [])
-    ]
+    if not candidates:
+        msg = "Could not find candidate tracks to build a playlist"
+        raise ValueError(msg)
 
     ai_config = load_ai_config()
     if ai_config.enabled and candidates:
