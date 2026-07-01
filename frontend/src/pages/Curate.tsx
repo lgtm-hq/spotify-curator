@@ -7,6 +7,8 @@ interface ChatMessage {
   content: string;
 }
 
+type ErrorStage = "start" | "answer" | "build" | "save" | null;
+
 function LoadingBubble({ label }: { label: string }) {
   return (
     <div className="max-w-xl rounded-2xl bg-zinc-800 px-4 py-3 text-zinc-100">
@@ -22,6 +24,38 @@ function LoadingBubble({ label }: { label: string }) {
   );
 }
 
+function ErrorBanner({
+  message,
+  onRetry,
+  retryLabel,
+}: {
+  message: string;
+  onRetry?: () => void;
+  retryLabel?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4">
+      <p className="text-sm text-red-300">{message}</p>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-3 rounded-lg border border-red-400/40 px-3 py-1.5 text-sm text-red-200 transition hover:bg-red-500/10"
+        >
+          {retryLabel ?? "Try again"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return "Something went wrong. Please try again.";
+}
+
 export function Curate() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -29,6 +63,8 @@ export function Curate() {
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [input, setInput] = useState("");
   const [done, setDone] = useState(false);
+  const [errorStage, setErrorStage] = useState<ErrorStage>(null);
+  const [errorText, setErrorText] = useState<string | null>(null);
   const [proposal, setProposal] = useState<{
     name: string;
     description: string;
@@ -36,15 +72,22 @@ export function Curate() {
     reasoning: string;
   } | null>(null);
 
+  const clearError = () => {
+    setErrorStage(null);
+    setErrorText(null);
+  };
+
   const start = useMutation({
     mutationFn: api.curateStart,
     onMutate: () => {
+      clearError();
       setMessages([]);
       setOptions([]);
       setSelectedOptions([]);
       setInput("");
       setDone(false);
       setProposal(null);
+      setSessionId(null);
     },
     onSuccess: (data) => {
       setSessionId(data.session_id);
@@ -54,17 +97,27 @@ export function Curate() {
       }
       setOptions(data.options ?? []);
     },
+    onError: (error) => {
+      setErrorStage("start");
+      setErrorText(errorMessage(error));
+    },
   });
 
   const build = useMutation({
     mutationFn: ({ sessionId, feedback }: { sessionId: string; feedback?: string }) =>
       api.curateBuild(sessionId, feedback),
+    onMutate: () => clearError(),
     onSuccess: (data) => setProposal(data),
+    onError: (error) => {
+      setErrorStage("build");
+      setErrorText(errorMessage(error));
+    },
   });
 
   const answer = useMutation({
     mutationFn: ({ sessionId, answer }: { sessionId: string; answer: string }) =>
       api.curateAnswer(sessionId, answer),
+    onMutate: () => clearError(),
     onSuccess: (data) => {
       setDone(Boolean(data.done));
       setSelectedOptions([]);
@@ -76,10 +129,24 @@ export function Curate() {
         build.mutate({ sessionId });
       }
     },
+    onError: (error, variables) => {
+      setMessages((prev) =>
+        prev.filter(
+          (msg) => !(msg.role === "user" && msg.content === variables.answer),
+        ),
+      );
+      setErrorStage("answer");
+      setErrorText(errorMessage(error));
+    },
   });
 
   const save = useMutation({
     mutationFn: (sessionId: string) => api.curateSave(sessionId),
+    onMutate: () => clearError(),
+    onError: (error) => {
+      setErrorStage("save");
+      setErrorText(errorMessage(error));
+    },
   });
 
   const isBusy = start.isPending || answer.isPending || build.isPending;
@@ -111,6 +178,12 @@ export function Curate() {
     setInput("");
     setSelectedOptions([]);
     answer.mutate({ sessionId, answer: text });
+  };
+
+  const retryBuild = () => {
+    if (!sessionId) return;
+    clearError();
+    build.mutate({ sessionId });
   };
 
   const canSend = Boolean(sessionId && !done && composeAnswer().trim() && !isBusy);
@@ -158,10 +231,24 @@ export function Curate() {
 
         {isBusy && pendingLabel && <LoadingBubble label={pendingLabel} />}
 
-        {(start.isError || answer.isError || build.isError) && (
-          <p className="text-sm text-red-400">
-            Something went wrong. Please try again.
-          </p>
+        {errorText && errorStage === "start" && (
+          <ErrorBanner
+            message={errorText}
+            onRetry={() => start.mutate()}
+            retryLabel="Restart interview"
+          />
+        )}
+
+        {errorText && errorStage === "answer" && (
+          <ErrorBanner message={errorText} />
+        )}
+
+        {errorText && errorStage === "build" && (
+          <ErrorBanner
+            message={errorText}
+            onRetry={retryBuild}
+            retryLabel="Retry playlist build"
+          />
         )}
 
         {!done && options.length > 0 && !isBusy && (
@@ -214,6 +301,12 @@ export function Curate() {
             </button>
           </form>
         )}
+
+        {done && !proposal && !build.isPending && errorStage !== "build" && (
+          <p className="text-sm text-zinc-400">
+            Interview complete — building your playlist…
+          </p>
+        )}
       </div>
 
       {proposal && (
@@ -222,6 +315,11 @@ export function Curate() {
           <p className="mb-2 text-zinc-300">{proposal.description}</p>
           <p className="mb-4 text-sm text-zinc-400">{proposal.reasoning}</p>
           <p className="mb-4 text-sm">{proposal.track_uris.length} tracks selected</p>
+          {errorText && errorStage === "save" && (
+            <div className="mb-4">
+              <ErrorBanner message={errorText} />
+            </div>
+          )}
           <div className="flex gap-3">
             <button
               type="button"

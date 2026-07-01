@@ -1,5 +1,21 @@
 const API_BASE = "";
 
+async function parseErrorDetail(
+  response: Response,
+  fallback: string,
+): Promise<string> {
+  const text = await response.text();
+  try {
+    const data = JSON.parse(text) as { detail?: unknown };
+    if (typeof data.detail === "string") {
+      return data.detail;
+    }
+  } catch {
+    // Response was not JSON — use raw text below.
+  }
+  return text.trim() || fallback;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -10,8 +26,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     },
   });
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || `Request failed: ${response.status}`);
+    throw new Error(
+      await parseErrorDetail(response, `Request failed: ${response.status}`),
+    );
   }
   return response.json() as Promise<T>;
 }
