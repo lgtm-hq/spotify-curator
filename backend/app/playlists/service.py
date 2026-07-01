@@ -15,6 +15,7 @@ from app.playlists.models import (
 from app.spotify_client import (
     paginate,
     paginate_playlist_items,
+    paginate_playlist_items_lite,
     playlist_entry_track,
     playlist_track_total,
 )
@@ -80,6 +81,26 @@ def list_playlists(
     for item in items:
         playlists.append(_summary_from_meta(item, current_user_id=current_user_id))
     return playlists
+
+
+def fetch_playlist_tracks_lite(
+    sp: spotipy.Spotify,
+    *,
+    playlist_id: str,
+    max_tracks: int = 100,
+) -> list[TrackSummary]:
+    """Fetch a capped sample of playlist tracks for quick analysis."""
+    items = paginate_playlist_items_lite(
+        sp,
+        playlist_id=playlist_id,
+        max_items=max_tracks,
+    )
+    tracks: list[TrackSummary] = []
+    for item in items:
+        mapped = _map_track(item)
+        if mapped:
+            tracks.append(mapped)
+    return tracks
 
 
 def get_playlist(

@@ -89,3 +89,31 @@ def paginate_playlist_items(
         limit=limit,
         additional_types=["track"],
     )
+
+
+def paginate_playlist_items_lite(
+    sp: spotipy.Spotify,
+    *,
+    playlist_id: str,
+    max_items: int = 100,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    """Fetch up to max_items playlist entries without loading the full playlist."""
+    method = sp.playlist_items
+    results: list[dict[str, Any]] = []
+    offset = 0
+    while len(results) < max_items:
+        page = method(
+            playlist_id,
+            limit=min(limit, max_items - len(results)),
+            offset=offset,
+            additional_types=["track"],
+        )
+        items = page.get("items", [])
+        if not items:
+            break
+        results.extend(items)
+        if not page.get("next"):
+            break
+        offset += limit
+    return results[:max_items]

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from fastapi import APIRouter, Depends
@@ -17,6 +18,7 @@ from app.cleanup.service import (
     apply_removals,
     apply_split,
 )
+from app.errors import raise_curate_http_error
 from app.spotify_client import get_spotify_client
 
 router = APIRouter(prefix="/cleanup", tags=["cleanup"])
@@ -24,12 +26,20 @@ router = APIRouter(prefix="/cleanup", tags=["cleanup"])
 
 @router.post("/ai/suggest")
 async def ai_suggest(
-    _user: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Scan the library and return AI cleanup suggestions."""
-    sp = await get_spotify_client(db)
-    return suggest_library_cleanups(sp, db=db)
+    try:
+        sp = await get_spotify_client(db)
+        return await asyncio.to_thread(
+            suggest_library_cleanups,
+            sp,
+            db=db,
+            current_user_id=user_id,
+        )
+    except Exception as exc:
+        raise_curate_http_error(exc, action="cleanup suggest")
 
 
 class RemoveRequest(BaseModel):

@@ -1,10 +1,9 @@
 import {
   useMutation,
-  useQueries,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   api,
   type CleanupAiSuggestResult,
@@ -22,26 +21,21 @@ export function Cleanup() {
   const playlists = useQuery({ queryKey: ["playlists"], queryFn: api.playlists });
   const [selectedId, setSelectedId] = useState("");
   const [aiSuggestions, setAiSuggestions] = useState<CleanupAiSuggestResult | null>(null);
+  const [scanStartedAt, setScanStartedAt] = useState<number | null>(null);
 
   const aiSuggest = useMutation({
     mutationFn: () => api.cleanupAiSuggest(),
+    onMutate: () => {
+      setScanStartedAt(Date.now());
+      setAiSuggestions(null);
+    },
     onSuccess: (result) => {
       setAiSuggestions(result);
+      setScanStartedAt(null);
     },
-  });
-
-  const suggestedPlaylistIds = useMemo(
-    () => [...new Set(aiSuggestions?.suggestions.map((item) => item.playlist_id) ?? [])],
-    [aiSuggestions],
-  );
-
-  const suggestionAnalyses = useQueries({
-    queries: suggestedPlaylistIds.map((playlistId) => ({
-      queryKey: ["cleanup-analysis", playlistId],
-      queryFn: () => api.cleanupAnalyze(playlistId),
-      enabled: Boolean(aiSuggestions),
-      staleTime: 60_000,
-    })),
+    onError: () => {
+      setScanStartedAt(null);
+    },
   });
 
   const manualAnalysis = useQuery({
@@ -79,7 +73,6 @@ export function Cleanup() {
     await manualAnalysis.refetch();
   };
 
-  const analysesLoading = suggestionAnalyses.some((query) => query.isLoading);
   const cachedManualResult = selectedId
     ? queryClient.getQueryData<CleanupAnalysis>(["cleanup-analysis", selectedId])
     : undefined;
@@ -122,11 +115,7 @@ export function Cleanup() {
         )}
 
         {aiSuggest.isPending && (
-          <div className="space-y-3">
-            <div className="h-4 w-2/3 animate-pulse rounded bg-white/10" />
-            <div className="h-20 animate-pulse rounded-lg bg-white/5" />
-            <div className="h-20 animate-pulse rounded-lg bg-white/5" />
-          </div>
+          <ScanProgress startedAt={scanStartedAt ?? Date.now()} />
         )}
 
         {aiSuggestions && !aiSuggest.isPending && (
@@ -134,8 +123,7 @@ export function Cleanup() {
             <p className="text-sm text-zinc-300">{aiSuggestions.summary}</p>
             <p className="text-xs text-zinc-500">
               Scanned {aiSuggestions.scanned_playlists} of {aiSuggestions.total_playlists}{" "}
-              playlists
-              {analysesLoading ? " · running full analysis on suggested playlists…" : ""}
+              playlists · expand a suggestion for full analysis
             </p>
 
             {aiSuggestions.suggestions.length === 0 ? (
@@ -144,41 +132,26 @@ export function Cleanup() {
               </p>
             ) : (
               <ul className="space-y-3">
-                {aiSuggestions.suggestions.map((suggestion, index) => {
-                  const playlistIndex = suggestedPlaylistIds.indexOf(suggestion.playlist_id);
-                  const analysisQuery =
-                    playlistIndex >= 0 ? suggestionAnalyses[playlistIndex] : undefined;
-
-                  return (
-                    <SuggestionCard
-                      key={`${suggestion.playlist_id}-${suggestion.title}-${index}`}
-                      suggestion={suggestion}
-                      analysis={analysisQuery?.data}
-                      isLoading={analysisQuery?.isLoading ?? false}
-                      isError={analysisQuery?.isError ?? false}
-                      onRetry={() =>
-                        queryClient.fetchQuery({
-                          queryKey: ["cleanup-analysis", suggestion.playlist_id],
-                          queryFn: () => api.cleanupAnalyze(suggestion.playlist_id),
-                        })
-                      }
-                      removePending={remove.isPending}
-                      splitPending={split.isPending}
-                      onRemove={(trackIds) =>
-                        remove.mutate({
-                          playlistId: suggestion.playlist_id,
-                          trackIds,
-                        })
-                      }
-                      onSplit={(proposals) =>
-                        split.mutate({
-                          playlistId: suggestion.playlist_id,
-                          proposals,
-                        })
-                      }
-                    />
-                  );
-                })}
+                {aiSuggestions.suggestions.map((suggestion, index) => (
+                  <SuggestionCard
+                    key={`${suggestion.playlist_id}-${suggestion.title}-${index}`}
+                    suggestion={suggestion}
+                    removePending={remove.isPending}
+                    splitPending={split.isPending}
+                    onRemove={(trackIds) =>
+                      remove.mutate({
+                        playlistId: suggestion.playlist_id,
+                        trackIds,
+                      })
+                    }
+                    onSplit={(proposals) =>
+                      split.mutate({
+                        playlistId: suggestion.playlist_id,
+                        proposals,
+                      })
+                    }
+                  />
+                ))}
               </ul>
             )}
           </div>
@@ -237,30 +210,62 @@ export function Cleanup() {
   );
 }
 
+function ScanProgress({ startedAt }: { startedAt: number }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    setElapsed(Math.floor((Date.now() - startedAt) / 1000));
+    const timer = window.setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [startedAt]);
+
+  const stage =
+    elapsed < 8
+      ? "Scanning your largest playlists for duplicates and dead tracks…"
+      : elapsed < 45
+        ? "Generating AI cleanup suggestions…"
+        : "Still working — large libraries can take up to a minute…";
+
+  return (
+    <div className="space-y-3 rounded-lg border border-violet-500/20 bg-black/20 p-4">
+      <p className="text-sm text-violet-200">{stage}</p>
+      <p className="text-xs text-zinc-500">{elapsed}s elapsed</p>
+      <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+        <div className="h-full w-1/3 animate-pulse rounded-full bg-violet-500/60" />
+      </div>
+    </div>
+  );
+}
+
 function SuggestionCard({
   suggestion,
-  analysis,
-  isLoading,
-  isError,
-  onRetry,
   removePending,
   splitPending,
   onRemove,
   onSplit,
 }: {
   suggestion: CleanupSuggestion;
-  analysis: CleanupAnalysis | undefined;
-  isLoading: boolean;
-  isError: boolean;
-  onRetry: () => void;
   removePending: boolean;
   splitPending: boolean;
   onRemove: (trackIds: string[]) => void;
   onSplit: (proposals: CleanupCluster[]) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const analysis = useQuery({
+    queryKey: ["cleanup-analysis", suggestion.playlist_id],
+    queryFn: () => api.cleanupAnalyze(suggestion.playlist_id),
+    enabled: expanded,
+    staleTime: 60_000,
+  });
+
   return (
     <li className="overflow-hidden rounded-lg border border-white/10 bg-black/20">
-      <details className="group">
+      <details
+        className="group"
+        onToggle={(event) => setExpanded(event.currentTarget.open)}
+      >
         <summary className="cursor-pointer list-none p-4 marker:content-none">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
@@ -285,14 +290,16 @@ function SuggestionCard({
         <div className="border-t border-white/10 px-4 pb-4 pt-3">
           <p className="mb-4 text-xs text-zinc-500">{suggestion.recommended_action}</p>
 
-          {isLoading && <AnalysisSkeleton label="Analyzing playlist…" />}
+          {expanded && analysis.isLoading && (
+            <AnalysisSkeleton label="Analyzing playlist…" />
+          )}
 
-          {isError && (
+          {expanded && analysis.isError && (
             <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
               <p className="mb-2 text-sm text-red-300">Analysis failed for this playlist.</p>
               <button
                 type="button"
-                onClick={onRetry}
+                onClick={() => analysis.refetch()}
                 className="rounded-lg border border-red-500/40 px-3 py-1.5 text-sm text-red-300"
               >
                 Retry analysis
@@ -300,14 +307,14 @@ function SuggestionCard({
             </div>
           )}
 
-          {analysis && !isLoading && (
+          {expanded && analysis.data && !analysis.isLoading && (
             <>
               <p className="mb-4 text-sm text-zinc-400">
-                {analysis.total_tracks} tracks analyzed
+                {analysis.data.total_tracks} tracks analyzed
               </p>
               <AnalysisActions
                 playlistId={suggestion.playlist_id}
-                analysis={analysis}
+                analysis={analysis.data}
                 highlightKind={suggestion.kind}
                 removePending={removePending}
                 splitPending={splitPending}
