@@ -49,6 +49,46 @@ DISCOVER_SCHEMA = {
     "required": ["name", "selected_track_ids"],
 }
 
+CLEANUP_SUGGESTIONS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "summary": {"type": "string"},
+        "suggestions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "playlist_id": {"type": "string"},
+                    "playlist_name": {"type": "string"},
+                    "priority": {"type": "string", "enum": ["high", "medium", "low"]},
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "duplicates",
+                            "unavailable",
+                            "split",
+                            "trim",
+                            "merge",
+                            "organize",
+                        ],
+                    },
+                    "title": {"type": "string"},
+                    "description": {"type": "string"},
+                    "recommended_action": {"type": "string"},
+                },
+                "required": [
+                    "playlist_id",
+                    "playlist_name",
+                    "title",
+                    "description",
+                    "recommended_action",
+                ],
+            },
+        },
+    },
+    "required": ["summary", "suggestions"],
+}
+
 
 def curate_question_schema() -> CliSchemaRequest:
     """Return CLI schema for mood concierge interview responses."""
@@ -74,3 +114,11 @@ def taste_profile_schema() -> CliSchemaRequest:
 def discover_schema() -> CliSchemaRequest:
     """Return CLI schema for discovery playlist output."""
     return CliSchemaRequest(schema=DISCOVER_SCHEMA, schema_name="discover")
+
+
+def cleanup_suggestions_schema() -> CliSchemaRequest:
+    """Return CLI schema for AI cleanup suggestions."""
+    return CliSchemaRequest(
+        schema=CLEANUP_SUGGESTIONS_SCHEMA,
+        schema_name="cleanup_suggestions",
+    )

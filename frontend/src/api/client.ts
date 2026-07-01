@@ -62,6 +62,21 @@ export const api = {
     request<Record<string, unknown>>(`/cleanup/analyze/${playlistId}`, {
       method: "POST",
     }),
+  cleanupAiSuggest: () =>
+    request<{
+      summary: string;
+      scanned_playlists: number;
+      total_playlists: number;
+      suggestions: {
+        playlist_id: string;
+        playlist_name: string;
+        priority?: "high" | "medium" | "low";
+        kind?: string;
+        title: string;
+        description: string;
+        recommended_action: string;
+      }[];
+    }>("/cleanup/ai/suggest", { method: "POST" }),
   cleanupRemove: (playlistId: string, trackIds: string[]) =>
     request<{ removed: number }>("/cleanup/apply/remove", {
       method: "POST",

@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.auth.router import get_current_user, get_db
+from app.cleanup.ai_service import suggest_library_cleanups
 from app.cleanup.service import (
     CleanupAnalysis,
     SplitProposal,
@@ -19,6 +20,16 @@ from app.cleanup.service import (
 from app.spotify_client import get_spotify_client
 
 router = APIRouter(prefix="/cleanup", tags=["cleanup"])
+
+
+@router.post("/ai/suggest")
+async def ai_suggest(
+    _user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Scan the library and return AI cleanup suggestions."""
+    sp = await get_spotify_client(db)
+    return suggest_library_cleanups(sp, db=db)
 
 
 class RemoveRequest(BaseModel):
