@@ -93,6 +93,13 @@ def utcnow() -> datetime:
     return datetime.now(UTC)
 
 
+def ensure_utc(value: datetime) -> datetime:
+    """Normalize datetimes loaded from SQLite to UTC-aware."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
 def dumps_json(data: object) -> str:
     """Serialize data to JSON string."""
     return json.dumps(data, default=str)

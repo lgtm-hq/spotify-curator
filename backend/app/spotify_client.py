@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.auth.spotify_oauth import refresh_access_token
-from app.db import TokenRecord
+from app.db import TokenRecord, ensure_utc
 
 
 async def get_spotify_client(db: Session) -> spotipy.Spotify:
@@ -19,7 +19,8 @@ async def get_spotify_client(db: Session) -> spotipy.Spotify:
     if record is None:
         raise HTTPException(status_code=401, detail="Spotify not connected")
 
-    if record.expires_at <= datetime.now(UTC) + timedelta(minutes=1):
+    expires_at = ensure_utc(record.expires_at)
+    if expires_at <= datetime.now(UTC) + timedelta(minutes=1):
         if not record.refresh_token:
             raise HTTPException(status_code=401, detail="Spotify token expired")
         token_data = await refresh_access_token(refresh_token=record.refresh_token)
@@ -34,6 +35,23 @@ async def get_spotify_client(db: Session) -> spotipy.Spotify:
         db.commit()
 
     return spotipy.Spotify(auth=record.access_token)
+
+
+def playlist_track_total(playlist: dict[str, Any]) -> int:
+    """Return playlist track count from Spotify items/tracks metadata."""
+    container = playlist.get("items") or playlist.get("tracks") or {}
+    total = container.get("total")
+    return int(total) if total is not None else 0
+
+
+def playlist_entry_track(entry: dict[str, Any]) -> dict[str, Any] | None:
+    """Extract a track object from a playlist page entry."""
+    track = entry.get("item") or entry.get("track")
+    if not isinstance(track, dict):
+        return None
+    if track.get("type") != "track" or not track.get("id"):
+        return None
+    return track
 
 
 def paginate(
