@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.db import CleanupRunRecord, dumps_json, utcnow
 from app.playlists.models import TrackSummary
 from app.playlists.service import get_playlist
+from app.spotify_client import playlist_entry_track
 
 
 def _normalize_title(name: str) -> str:
@@ -278,9 +279,9 @@ def apply_removals(
 
     remove_ids = set(track_ids)
     positions = [
-        item["track"]["uri"]
-        for item in all_items
-        if item.get("track") and item["track"].get("id") in remove_ids
+        track["uri"]
+        for entry in all_items
+        if (track := playlist_entry_track(entry)) and track.get("id") in remove_ids
     ]
     if positions:
         sp.playlist_remove_all_occurrences_of_items(playlist_id, positions)
