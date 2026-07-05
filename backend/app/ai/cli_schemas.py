@@ -34,8 +34,26 @@ TASTE_PROFILE_SCHEMA = {
         "mood_tags": {"type": "array", "items": {"type": "string"}},
         "era_preference": {"type": "string"},
         "energy_range": {"type": "string"},
+        "taste_lanes": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "label": {"type": "string"},
+                    "description": {"type": "string"},
+                    "artists": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": ["label", "description"],
+            },
+        },
+        "core_taste": {"type": "string"},
+        "recent_shift": {"type": "string"},
+        "curation_hints": {"type": "array", "items": {"type": "string"}},
+        "avoid": {"type": "array", "items": {"type": "string"}},
+        "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+        "audio_features_summary": {"type": "string"},
     },
-    "required": ["summary", "genres"],
+    "required": ["summary", "genres", "taste_lanes", "curation_hints"],
 }
 
 DISCOVER_SCHEMA = {
@@ -45,6 +63,18 @@ DISCOVER_SCHEMA = {
         "description": {"type": "string"},
         "selected_track_ids": {"type": "array", "items": {"type": "string"}},
         "reasoning": {"type": "string"},
+        "rationale": {
+            "type": "object",
+            "properties": {
+                "summary": {"type": "string"},
+                "core_genres": {"type": "array", "items": {"type": "string"}},
+                "spotlight_artists": {"type": "array", "items": {"type": "string"}},
+                "discovery_picks": {"type": "array", "items": {"type": "string"}},
+                "energy_notes": {"type": "string"},
+                "flow_strategy": {"type": "string"},
+                "excluded": {"type": "array", "items": {"type": "string"}},
+            },
+        },
     },
     "required": ["name", "selected_track_ids"],
 }

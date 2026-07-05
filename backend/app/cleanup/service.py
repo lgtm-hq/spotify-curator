@@ -179,10 +179,11 @@ def cluster_by_audio_features(
         )
         ids.append(track.id)
 
-    if len(vectors) < n_clusters:
+    if len(vectors) < 2:
         return []
 
-    labels = KMeans(n_clusters=n_clusters, random_state=42, n_init=10).fit_predict(
+    cluster_count = min(n_clusters, len(vectors))
+    labels = KMeans(n_clusters=cluster_count, random_state=42, n_init=10).fit_predict(
         np.array(vectors),
     )
     clusters: dict[int, list[str]] = defaultdict(list)

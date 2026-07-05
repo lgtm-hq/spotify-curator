@@ -19,4 +19,4 @@ Suggest cleanup actions. For each suggestion include:
 - description: why this matters
 - recommended_action: what the user should do next
 
-Only suggest playlists present in the scan data."""
+Only suggest playlists present in the scan data.{focus_hint}{user_instructions}"""
