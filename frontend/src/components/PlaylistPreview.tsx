@@ -27,10 +27,11 @@ function formatDuration(ms: number): string {
 
 interface PlaylistPreviewProps {
   tracks: CurateTrack[];
-  onRemove: (trackId: string) => void;
+  onRemove?: (trackId: string) => void;
+  readOnly?: boolean;
 }
 
-export function PlaylistPreview({ tracks, onRemove }: PlaylistPreviewProps) {
+export function PlaylistPreview({ tracks, onRemove, readOnly = false }: PlaylistPreviewProps) {
   return (
     <details open className="group rounded-xl border border-white/10 bg-black/30">
       <summary className="cursor-pointer list-none px-4 py-3 marker:content-none">
@@ -51,11 +52,7 @@ export function PlaylistPreview({ tracks, onRemove }: PlaylistPreviewProps) {
             <summary className="cursor-pointer list-none marker:content-none">
               <div className="flex items-center gap-3">
                 {track.image_url ? (
-                  <img
-                    src={track.image_url}
-                    alt=""
-                    className="h-12 w-12 rounded-md object-cover"
-                  />
+                  <img src={track.image_url} alt="" className="h-12 w-12 rounded-md object-cover" />
                 ) : (
                   <div className="flex h-12 w-12 items-center justify-center rounded-md bg-zinc-800 text-xs text-zinc-500">
                     No art
@@ -79,8 +76,7 @@ export function PlaylistPreview({ tracks, onRemove }: PlaylistPreviewProps) {
                 <span className="text-zinc-500">Album:</span> {track.album ?? "Unknown"}
               </p>
               <p>
-                <span className="text-zinc-500">Duration:</span>{" "}
-                {formatDuration(track.duration_ms)}
+                <span className="text-zinc-500">Duration:</span> {formatDuration(track.duration_ms)}
               </p>
               <p>
                 <span className="text-zinc-500">Explicit:</span> {track.explicit ? "Yes" : "No"}
@@ -109,8 +105,9 @@ export function PlaylistPreview({ tracks, onRemove }: PlaylistPreviewProps) {
                 )}
                 <button
                   type="button"
-                  onClick={() => onRemove(track.id)}
-                  className="rounded-md border border-red-500/30 px-3 py-1.5 text-xs text-red-300 transition hover:bg-red-500/10"
+                  onClick={() => onRemove?.(track.id)}
+                  disabled={readOnly || !onRemove}
+                  className="rounded-md border border-red-500/30 px-3 py-1.5 text-xs text-red-300 transition hover:bg-red-500/10 disabled:hidden"
                 >
                   Remove
                 </button>

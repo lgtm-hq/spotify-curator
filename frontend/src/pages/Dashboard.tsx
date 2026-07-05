@@ -2,7 +2,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PlaylistBrowser } from "../components/playlists/PlaylistBrowser";
+import { TasteProfileDisplay, TasteProfileSkeleton } from "../components/taste/TasteProfileDisplay";
 import { api } from "../api/client";
+
+function isAuthRequiredError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("not authenticated") ||
+    message.includes("401") ||
+    message.includes("spotify not connected")
+  );
+}
 
 export function Dashboard() {
   const queryClient = useQueryClient();
@@ -37,24 +50,42 @@ export function Dashboard() {
     }
   }, [justLoggedIn, taste.data, auth.data?.has_taste_profile, searchParams, setSearchParams]);
 
+  if (auth.isLoading) {
+    return <p className="text-zinc-400">Loading…</p>;
+  }
+
   if (auth.isError) {
+    if (isAuthRequiredError(auth.error)) {
+      return (
+        <div className="rounded-xl border border-white/10 bg-white/5 p-8 text-center">
+          <h2 className="mb-2 text-2xl font-semibold">Welcome</h2>
+          <p className="mb-6 text-zinc-400">Connect your Spotify account to get started.</p>
+          <button
+            type="button"
+            onClick={() => api.login()}
+            className="rounded-lg bg-emerald-500 px-6 py-3 font-medium text-black"
+          >
+            Connect Spotify
+          </button>
+        </div>
+      );
+    }
+
+    const message =
+      auth.error instanceof Error ? auth.error.message : "Could not reach the server.";
     return (
-      <div className="rounded-xl border border-white/10 bg-white/5 p-8 text-center">
-        <h2 className="mb-2 text-2xl font-semibold">Welcome</h2>
-        <p className="mb-6 text-zinc-400">Connect your Spotify account to get started.</p>
+      <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-8 text-center">
+        <h2 className="mb-2 text-xl font-semibold text-red-200">Connection problem</h2>
+        <p className="mb-6 text-sm text-zinc-400">{message}</p>
         <button
           type="button"
-          onClick={() => api.login()}
+          onClick={() => void queryClient.invalidateQueries({ queryKey: ["me"] })}
           className="rounded-lg bg-emerald-500 px-6 py-3 font-medium text-black"
         >
-          Connect Spotify
+          Retry
         </button>
       </div>
     );
-  }
-
-  if (auth.isLoading) {
-    return <p className="text-zinc-400">Loading…</p>;
   }
 
   const tasteLoading = taste.isLoading || (justLoggedIn && !taste.data && !taste.isError);
@@ -84,12 +115,7 @@ export function Dashboard() {
           </button>
         </div>
 
-        {tasteLoading && (
-          <div className="space-y-3">
-            <div className="h-4 w-3/4 animate-pulse rounded bg-white/10" />
-            <div className="h-4 w-1/2 animate-pulse rounded bg-white/10" />
-          </div>
-        )}
+        {tasteLoading && <TasteProfileSkeleton />}
 
         {taste.isError && (
           <p className="text-sm text-red-300">
@@ -97,21 +123,7 @@ export function Dashboard() {
           </p>
         )}
 
-        {taste.data && !tasteLoading && (
-          <>
-            <p className="mb-3 text-zinc-300">{taste.data.summary}</p>
-            <div className="flex flex-wrap gap-2">
-              {taste.data.genres.map((genre) => (
-                <span
-                  key={genre}
-                  className="rounded-full bg-emerald-500/10 px-3 py-1 text-sm text-emerald-300"
-                >
-                  {genre}
-                </span>
-              ))}
-            </div>
-          </>
-        )}
+        {taste.data && !tasteLoading && <TasteProfileDisplay profile={taste.data} />}
 
         {!taste.data && !tasteLoading && !taste.isError && (
           <p className="text-sm text-zinc-400">

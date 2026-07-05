@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import spotipy
+from sqlalchemy.orm import Session
 
 from app.playlists.models import (
     PlaylistDetail,
@@ -78,8 +79,9 @@ def list_playlists(
     """Fetch all user playlists."""
     items = paginate(sp, "current_user_playlists")
     playlists: list[PlaylistSummary] = []
-    for item in items:
-        playlists.append(_summary_from_meta(item, current_user_id=current_user_id))
+    for index, item in enumerate(items):
+        summary = _summary_from_meta(item, current_user_id=current_user_id)
+        playlists.append(summary.model_copy(update={"library_order": index}))
     return playlists
 
 
@@ -162,3 +164,77 @@ def reorder_tracks(
         insert_before,
         range_length=range_length,
     )
+
+
+def remove_tracks_by_uri(
+    sp: spotipy.Spotify,
+    *,
+    playlist_id: str,
+    track_uris: list[str],
+) -> int:
+    """Remove tracks from a playlist using known Spotify URIs."""
+    if not track_uris:
+        return 0
+    sp.playlist_remove_all_occurrences_of_items(playlist_id, track_uris)
+    return len(track_uris)
+
+
+def update_playlist_metadata(
+    sp: spotipy.Spotify,
+    *,
+    playlist_id: str,
+    current_user_id: str | None = None,
+    name: str | None = None,
+    description: str | None = None,
+    public: bool | None = None,
+) -> PlaylistSummary:
+    """Update playlist name, description, or visibility."""
+    changes: dict[str, object] = {}
+    if name is not None:
+        changes["name"] = name.strip() or "Untitled"
+    if description is not None:
+        changes["description"] = description
+    if public is not None:
+        changes["public"] = public
+    if changes:
+        sp.playlist_change_details(playlist_id, **changes)
+    meta = sp.playlist(playlist_id)
+    return _summary_from_meta(meta, current_user_id=current_user_id)
+
+
+def unfollow_playlist(
+    sp: spotipy.Spotify,
+    *,
+    playlist_id: str,
+) -> None:
+    """Remove a playlist from the user's library."""
+    sp.current_user_unfollow_playlist(playlist_id)
+
+
+def can_edit_from_list_cache(
+    db: Session,
+    *,
+    playlist_id: str,
+) -> bool | None:
+    """Return edit permission from cached playlist list, if known."""
+    from app.playlists.cache import load_playlist_list_cache, playlists_from_scan_cache
+
+    for source in (load_playlist_list_cache(db), playlists_from_scan_cache(db)):
+        if not source:
+            continue
+        for playlist in source:
+            if playlist.id == playlist_id:
+                return playlist.can_edit
+    return None
+
+
+def can_edit_from_metadata(
+    sp: spotipy.Spotify,
+    *,
+    playlist_id: str,
+    current_user_id: str,
+) -> bool:
+    """Check edit permission with a single playlist metadata request."""
+    meta = sp.playlist(playlist_id)
+    owner = meta.get("owner") or {}
+    return str(owner.get("id", "")) == current_user_id
