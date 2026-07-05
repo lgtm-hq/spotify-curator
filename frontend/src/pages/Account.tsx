@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
+import { TasteProfileDisplay, TasteProfileSkeleton } from "../components/taste/TasteProfileDisplay";
 
 function formatDate(value: string | null | undefined): string {
   if (!value) {
@@ -72,11 +73,7 @@ export function Account() {
         {user ? (
           <div className="flex flex-wrap items-center gap-4">
             {user.image_url ? (
-              <img
-                src={user.image_url}
-                alt=""
-                className="h-20 w-20 rounded-full object-cover"
-              />
+              <img src={user.image_url} alt="" className="h-20 w-20 rounded-full object-cover" />
             ) : (
               <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/20 text-2xl text-emerald-300">
                 {user.display_name.slice(0, 1).toUpperCase()}
@@ -101,8 +98,8 @@ export function Account() {
           <div>
             <h3 className="text-xl font-semibold text-violet-200">Taste profile</h3>
             <p className="mt-1 max-w-2xl text-sm text-zinc-400">
-              AI analysis of your top artists, tracks, and listening patterns. Used by
-              Curate, Cleanup suggestions, and Discover.
+              AI analysis of your top artists, tracks, and listening patterns. Used by Curate,
+              Cleanup suggestions, and Discover.
             </p>
             <p className="mt-2 text-xs text-zinc-500">
               Last updated: {formatDate(account.data?.taste_updated_at)}
@@ -139,28 +136,9 @@ export function Account() {
           </p>
         )}
 
-        {isTasteBusy && (
-          <div className="space-y-3">
-            <div className="h-4 w-2/3 animate-pulse rounded bg-white/10" />
-            <div className="h-16 animate-pulse rounded-lg bg-white/5" />
-          </div>
-        )}
+        {isTasteBusy && <TasteProfileSkeleton />}
 
-        {!isTasteBusy && taste.data && (
-          <div>
-            <p className="mb-3 text-zinc-300">{taste.data.summary}</p>
-            <div className="flex flex-wrap gap-2">
-              {taste.data.genres.map((genre) => (
-                <span
-                  key={genre}
-                  className="rounded-full bg-violet-500/10 px-3 py-1 text-sm text-violet-300"
-                >
-                  {genre}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+        {!isTasteBusy && taste.data && <TasteProfileDisplay profile={taste.data} />}
 
         {!isTasteBusy && !taste.data && !account.data?.has_taste_profile && (
           <p className="text-sm text-zinc-400">
@@ -171,9 +149,7 @@ export function Account() {
 
       <section className="rounded-xl border border-white/10 bg-white/5 p-6">
         <h3 className="mb-2 text-xl font-semibold">How your data is stored</h3>
-        <p className="mb-4 text-sm text-zinc-400">
-          {account.data?.data_storage.description}
-        </p>
+        <p className="mb-4 text-sm text-zinc-400">{account.data?.data_storage.description}</p>
         <p className="mb-3 text-xs uppercase tracking-wide text-zinc-500">
           Database: {account.data?.data_storage.database}
         </p>
@@ -193,8 +169,8 @@ export function Account() {
       <section className="rounded-xl border border-red-500/20 bg-red-500/5 p-6">
         <h3 className="mb-2 text-lg font-medium text-red-200">Switch account</h3>
         <p className="mb-4 text-sm text-zinc-400">
-          Logging out clears your Spotify tokens and taste profile from this app so another
-          account can connect.
+          Logging out clears your Spotify tokens and taste profile from this app so another account
+          can connect.
         </p>
         <button
           type="button"

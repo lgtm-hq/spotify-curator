@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import NoReturn
 
 from fastapi import HTTPException
 from spotipy.exceptions import SpotifyException
@@ -16,7 +17,7 @@ from app.ai.exceptions import (
 logger = logging.getLogger(__name__)
 
 
-def raise_curate_http_error(exc: Exception, *, action: str) -> None:
+def raise_curate_http_error(exc: Exception, *, action: str) -> NoReturn:
     """Log and translate curate failures into HTTP errors."""
     if isinstance(exc, HTTPException):
         raise exc

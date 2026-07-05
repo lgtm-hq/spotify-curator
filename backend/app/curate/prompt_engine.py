@@ -22,10 +22,63 @@ from app.ai.prompts.curate import (
 )
 from app.db import CurateSessionRecord, dumps_json, loads_json, utcnow
 from app.spotify_candidates import get_recommendation_candidates
+from app.taste.engine import compact_taste_for_prompt
 from app.taste.models import TasteProfile
 from app.track_metadata import enrich_track_uris
 
 MAX_ROUNDS = 5
+MIN_PLAYLIST_TRACKS = 20
+MAX_PLAYLIST_TRACKS = 35
+CANDIDATE_POOL_LIMIT = 80
+INTERVIEW_MAX_TOKENS = 1024
+PLAYLIST_BUILD_MAX_TOKENS = 3072
+
+
+def _dedupe_uris(uris: list[str]) -> list[str]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for uri in uris:
+        if not isinstance(uri, str) or not uri.strip() or uri in seen:
+            continue
+        seen.add(uri)
+        ordered.append(uri)
+    return ordered
+
+
+def _normalize_playlist_uris(
+    parsed: dict[str, Any],
+    candidates: list[dict[str, Any]],
+    *,
+    previous_uris: list[str] | None = None,
+) -> list[str]:
+    """Ensure the playlist meets minimum length using the candidate pool."""
+    raw_uris = parsed.get("track_uris", [])
+    uris = _dedupe_uris([uri for uri in raw_uris if isinstance(uri, str)])
+
+    candidate_uris = [
+        str(candidate["uri"])
+        for candidate in candidates
+        if isinstance(candidate.get("uri"), str)
+    ]
+    allowed = set(candidate_uris)
+    if previous_uris:
+        allowed.update(previous_uris)
+
+    uris = [uri for uri in uris if uri in allowed]
+    if not uris and previous_uris:
+        uris = _dedupe_uris(previous_uris)
+
+    seen = set(uris)
+    if len(uris) < MIN_PLAYLIST_TRACKS:
+        for uri in candidate_uris:
+            if uri in seen:
+                continue
+            uris.append(uri)
+            seen.add(uri)
+            if len(uris) >= MIN_PLAYLIST_TRACKS:
+                break
+
+    return uris[:MAX_PLAYLIST_TRACKS]
 
 
 def _format_conversation(messages: list[dict[str, Any]]) -> str:
@@ -35,6 +88,21 @@ def _format_conversation(messages: list[dict[str, Any]]) -> str:
         content = msg.get("content", "")
         lines.append(f"{role}: {content}")
     return "\n".join(lines) or "(none)"
+
+
+def _compact_candidates(candidates: list[dict[str, Any]], *, limit: int = 60) -> str:
+    """Trim candidate payload for playlist-build prompts."""
+    compact = [
+        {
+            "id": candidate.get("id"),
+            "name": candidate.get("name"),
+            "artists": (candidate.get("artists") or [])[:3],
+            "uri": candidate.get("uri"),
+        }
+        for candidate in candidates[:limit]
+        if candidate.get("id") and candidate.get("uri")
+    ]
+    return json.dumps(compact, separators=(",", ":"))
 
 
 def start_session(*, db: Session, taste_profile: TasteProfile) -> dict[str, Any]:
@@ -67,7 +135,7 @@ def start_session(*, db: Session, taste_profile: TasteProfile) -> dict[str, Any]
     provider = get_provider(ai_config)
     budget = CostBudget(max_cost_usd=ai_config.max_cost_usd)
     prompt = CURATE_USER_TEMPLATE.format(
-        taste_profile=taste_profile.model_dump_json(),
+        taste_profile=compact_taste_for_prompt(taste_profile),
         conversation="(starting interview)",
     )
     cli_schema = (
@@ -81,6 +149,7 @@ def start_session(*, db: Session, taste_profile: TasteProfile) -> dict[str, Any]
         user_prompt=prompt,
         system_prompt=CURATE_SYSTEM,
         budget=budget,
+        max_tokens=INTERVIEW_MAX_TOKENS,
         cli_schema=cli_schema,
     )
     parsed = load_json_object(content=response.content)
@@ -143,7 +212,7 @@ def answer_session(
     provider = get_provider(ai_config)
     budget = CostBudget(max_cost_usd=ai_config.max_cost_usd)
     prompt = CURATE_USER_TEMPLATE.format(
-        taste_profile=taste_profile.model_dump_json(),
+        taste_profile=compact_taste_for_prompt(taste_profile),
         conversation=_format_conversation(messages),
     )
     cli_schema = (
@@ -157,6 +226,7 @@ def answer_session(
         user_prompt=prompt,
         system_prompt=CURATE_SYSTEM,
         budget=budget,
+        max_tokens=INTERVIEW_MAX_TOKENS,
         cli_schema=cli_schema,
     )
     parsed = load_json_object(content=response.content)
@@ -194,26 +264,44 @@ def build_playlist_from_brief(
         msg = "Session not ready for playlist build"
         raise ValueError(msg)
 
-    candidates = get_recommendation_candidates(sp, taste_profile, limit=50)
+    candidates = get_recommendation_candidates(
+        sp,
+        taste_profile,
+        limit=CANDIDATE_POOL_LIMIT,
+    )
 
     if not candidates:
         msg = "Could not find candidate tracks to build a playlist"
         raise ValueError(msg)
 
+    previous_uris: list[str] | None = None
+    if record.proposed_tracks_json:
+        existing = loads_json(record.proposed_tracks_json)
+        if isinstance(existing, dict):
+            raw_previous = existing.get("track_uris", [])
+            if isinstance(raw_previous, list):
+                previous_uris = [
+                    str(uri) for uri in raw_previous if isinstance(uri, str)
+                ]
+
     ai_config = load_ai_config()
     if ai_config.enabled and candidates:
         provider = get_provider(ai_config)
         budget = CostBudget(max_cost_usd=ai_config.max_cost_usd)
+        candidate_payload = _compact_candidates(candidates)
         if feedback and record.proposed_tracks_json:
             prompt = REFINE_TEMPLATE.format(
+                brief=record.playlist_brief,
+                taste_profile=compact_taste_for_prompt(taste_profile),
+                candidates=candidate_payload,
                 current=record.proposed_tracks_json,
                 feedback=feedback,
             )
         else:
             prompt = PLAYLIST_BUILD_TEMPLATE.format(
                 brief=record.playlist_brief,
-                taste_profile=taste_profile.model_dump_json(),
-                candidates=json.dumps(candidates[:40]),
+                taste_profile=compact_taste_for_prompt(taste_profile),
+                candidates=candidate_payload,
             )
         cli_schema = (
             curate_playlist_schema()
@@ -226,11 +314,12 @@ def build_playlist_from_brief(
             user_prompt=prompt,
             system_prompt=CURATE_SYSTEM,
             budget=budget,
+            max_tokens=PLAYLIST_BUILD_MAX_TOKENS,
             cli_schema=cli_schema,
         )
         parsed = load_json_object(content=response.content)
     else:
-        selected = candidates[:20]
+        selected = candidates[:MIN_PLAYLIST_TRACKS]
         parsed = {
             "name": "Mood Mix",
             "description": record.playlist_brief,
@@ -238,12 +327,55 @@ def build_playlist_from_brief(
             "reasoning": "Selected top recommendations matching taste seeds.",
         }
 
+    normalized_uris = _normalize_playlist_uris(
+        parsed,
+        candidates,
+        previous_uris=previous_uris,
+    )
+    parsed["track_uris"] = normalized_uris
     parsed["tracks"] = enrich_track_uris(
         sp,
-        list(parsed.get("track_uris", [])),
+        normalized_uris,
         candidates=candidates,
     )
-    parsed["track_uris"] = [track["uri"] for track in parsed["tracks"]]
+    if len(parsed["tracks"]) < MIN_PLAYLIST_TRACKS:
+        present = {track["uri"] for track in parsed["tracks"]}
+        for candidate in candidates:
+            uri = candidate.get("uri")
+            if not isinstance(uri, str) or uri in present:
+                continue
+            parsed["tracks"].append(
+                {
+                    "id": candidate.get("id", ""),
+                    "uri": uri,
+                    "name": candidate.get("name", "Unknown"),
+                    "artists": candidate.get("artists", []),
+                    "album": candidate.get("album"),
+                    "duration_ms": candidate.get("duration_ms", 0),
+                    "image_url": candidate.get("image_url"),
+                    "preview_url": candidate.get("preview_url"),
+                    "explicit": candidate.get("explicit", False),
+                },
+            )
+            present.add(uri)
+            if len(parsed["tracks"]) >= MIN_PLAYLIST_TRACKS:
+                break
+    parsed["track_uris"] = [track["uri"] for track in parsed["tracks"]][
+        :MAX_PLAYLIST_TRACKS
+    ]
+    parsed["tracks"] = parsed["tracks"][:MAX_PLAYLIST_TRACKS]
+
+    if feedback:
+        messages = loads_json(record.conversation_json)
+        if isinstance(messages, list):
+            messages.append({"role": "user", "content": feedback})
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": "Updated the playlist based on your feedback.",
+                },
+            )
+            record.conversation_json = dumps_json(messages)
 
     record.proposed_tracks_json = dumps_json(parsed)
     record.status = "proposal_ready"
@@ -284,6 +416,7 @@ def save_playlist_to_spotify(
         sp.playlist_add_items(playlist["id"], uris[i : i + 100])
 
     record.status = "saved"
+    record.spotify_playlist_id = str(playlist["id"])
     record.updated_at = utcnow()
     db.commit()
     return {

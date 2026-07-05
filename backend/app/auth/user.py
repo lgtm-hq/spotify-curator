@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
-import spotipy
 from sqlalchemy.orm import Session
 
 from app.db import UserRecord, utcnow
+from app.spotify_client import create_spotify_client
 
 
 def save_user_profile(db: Session, *, profile: dict[str, Any]) -> UserRecord:
@@ -20,7 +19,9 @@ def save_user_profile(db: Session, *, profile: dict[str, Any]) -> UserRecord:
         db.add(record)
 
     record.spotify_id = str(profile.get("id", ""))
-    record.display_name = str(profile.get("display_name") or profile.get("id") or "Spotify user")
+    record.display_name = str(
+        profile.get("display_name") or profile.get("id") or "Spotify user"
+    )
     record.email = profile.get("email")
     record.image_url = images[0]["url"] if images else None
     record.product = profile.get("product")
@@ -31,7 +32,7 @@ def save_user_profile(db: Session, *, profile: dict[str, Any]) -> UserRecord:
 
 def fetch_and_save_user_profile(db: Session, *, access_token: str) -> UserRecord:
     """Load the current Spotify user and persist it."""
-    sp = spotipy.Spotify(auth=access_token)
+    sp = create_spotify_client(access_token)
     return save_user_profile(db, profile=sp.me())
 
 

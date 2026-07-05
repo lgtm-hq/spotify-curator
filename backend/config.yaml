@@ -2,6 +2,7 @@
 ai:
   enabled: true
   provider: anthropic
+  # transport: api is faster for chat (CLI spawns a subprocess per message)
   transport: cli
   model: claude-sonnet-4-20250514
   api_timeout: 600
@@ -13,3 +14,13 @@ ai:
 discover:
   schedule_cron: "0 9 * * 1"
   playlist_name_prefix: "Discover Weekly"
+
+# Optional SMTP for scheduled advisor email digests (history always saved)
+smtp:
+  enabled: false
+  host: ""
+  port: 587
+  username: ""
+  password: ""
+  from_address: ""
+  use_tls: true

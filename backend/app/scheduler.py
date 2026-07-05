@@ -1,4 +1,4 @@
-"""Scheduled discovery jobs."""
+"""Scheduled discovery and advisor jobs."""
 
 from __future__ import annotations
 
@@ -35,6 +35,59 @@ def _run_scheduled_discovery() -> None:
     asyncio.run(_run())
 
 
+def _run_scheduled_advisor() -> None:
+    """Run scheduled AI advisor cleanup scan."""
+    from app.cleanup.advisor_schedule import run_scheduled_advisor
+
+    run_scheduled_advisor()
+
+
+def _register_advisor_job(scheduler: BackgroundScheduler) -> None:
+    """Register or replace the advisor cron job from database settings."""
+    from app.cleanup.advisor_schedule import DEFAULT_CRON
+    from app.db import AdvisorScheduleRecord
+
+    db = SessionLocal()
+    try:
+        record = db.get(AdvisorScheduleRecord, 1)
+        enabled = bool(record and record.enabled)
+        cron = record.cron if record else DEFAULT_CRON
+    finally:
+        db.close()
+
+    if scheduler.get_job("weekly_advisor"):
+        scheduler.remove_job("weekly_advisor")
+
+    if not enabled:
+        logger.info("Advisor schedule disabled")
+        return
+
+    parts = cron.split()
+    if len(parts) != 5:
+        logger.warning("Invalid advisor cron %r; skipping advisor job", cron)
+        return
+
+    minute, hour, day, month, day_of_week = parts
+    scheduler.add_job(
+        _run_scheduled_advisor,
+        trigger="cron",
+        minute=minute,
+        hour=hour,
+        day=day,
+        month=month,
+        day_of_week=day_of_week,
+        id="weekly_advisor",
+        replace_existing=True,
+    )
+    logger.info("Advisor schedule registered with cron: %s", cron)
+
+
+def refresh_advisor_schedule() -> None:
+    """Reload advisor cron after settings change."""
+    if _scheduler is not None:
+        _register_advisor_job(_scheduler)
+
+
 def start_scheduler() -> None:
     """Start APScheduler if cron configured."""
     global _scheduler
@@ -60,8 +113,9 @@ def start_scheduler() -> None:
             id="weekly_discover",
             replace_existing=True,
         )
+    _register_advisor_job(_scheduler)
     _scheduler.start()
-    logger.info("Scheduler started with cron: %s", cron)
+    logger.info("Scheduler started with discover cron: %s", cron)
 
 
 def stop_scheduler() -> None:

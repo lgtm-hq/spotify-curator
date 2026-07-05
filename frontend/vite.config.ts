@@ -26,8 +26,7 @@ export default defineConfig({
       "/curate/answer": backend,
       "/curate/build": backend,
       "/curate/save": backend,
-      "/discover/generate": backend,
-      "/discover/history": backend,
+      "/discover": backend,
     },
   },
   preview: {
@@ -45,8 +44,7 @@ export default defineConfig({
       "/curate/answer": backend,
       "/curate/build": backend,
       "/curate/save": backend,
-      "/discover/generate": backend,
-      "/discover/history": backend,
+      "/discover": backend,
     },
   },
 });

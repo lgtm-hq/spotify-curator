@@ -28,7 +28,7 @@ from app.db import (
     TokenRecord,
     UserRecord,
 )
-from app.spotify_client import get_spotify_client
+from app.spotify_client import call_spotify, create_spotify_client, get_spotify_client
 from app.taste.engine import build_taste_profile, load_cached_taste_profile
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -126,9 +126,7 @@ def _warm_taste_profile_after_login() -> None:
         token = db.get(TokenRecord, 1)
         if token is None:
             return
-        import spotipy
-
-        sp = spotipy.Spotify(auth=token.access_token)
+        sp = create_spotify_client(token.access_token)
         build_taste_profile(sp, db=db, force_refresh=False)
         logger.info("Generated taste profile after login")
     except Exception:
@@ -217,7 +215,8 @@ async def me(
     user = db.get(UserRecord, 1)
     if user is None and db.get(TokenRecord, 1) is not None:
         sp = await get_spotify_client(db)
-        save_user_profile(db, profile=sp.me())
+        profile = await call_spotify(sp.me)
+        save_user_profile(db, profile=profile)
     return _build_me_response(db, user_id=user_id)
 
 
@@ -251,7 +250,9 @@ def account(
                 },
                 {
                     "key": "taste_profiles",
-                    "description": "AI-generated taste profile from your listening history",
+                    "description": (
+                        "AI-generated taste profile from your listening history"
+                    ),
                 },
                 {
                     "key": "curate_sessions",

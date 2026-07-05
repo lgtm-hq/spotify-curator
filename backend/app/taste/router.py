@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.auth.router import get_current_user, get_db
-from app.spotify_client import get_spotify_client
+from app.spotify_client import call_spotify, get_spotify_client
 from app.taste.engine import build_taste_profile
 from app.taste.models import TasteProfile
 
@@ -21,7 +21,7 @@ async def get_taste_profile(
 ) -> TasteProfile:
     """Get or refresh taste profile."""
     sp = await get_spotify_client(db)
-    return build_taste_profile(sp, db=db, force_refresh=refresh)
+    return await call_spotify(build_taste_profile, sp, db=db, force_refresh=refresh)
 
 
 @router.post("/refresh", response_model=TasteProfile)
@@ -31,4 +31,4 @@ async def refresh_taste_profile(
 ) -> TasteProfile:
     """Regenerate taste profile from current listening data."""
     sp = await get_spotify_client(db)
-    return build_taste_profile(sp, db=db, force_refresh=True)
+    return await call_spotify(build_taste_profile, sp, db=db, force_refresh=True)
