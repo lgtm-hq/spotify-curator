@@ -1,31 +1,40 @@
 # Spotify Curator
 
-Self-hosted Spotify playlist management tool with cleanup, mood-based curation, and auto-discovery.
+Self-hosted Spotify playlist management tool with cleanup, mood-based curation,
+and auto-discovery.
 
 ## Features
 
-- **Cleanup** — remove duplicates, unavailable tracks, skip-heavy songs; split by mood clusters
-- **Curate (Mood Concierge)** — conversational interview to build playlists for your current vibe
+- **Cleanup** — remove duplicates, unavailable tracks, skip-heavy songs; split
+  by mood clusters
+- **Curate (Mood Concierge)** — conversational interview to build playlists for
+  your current vibe
 - **Discover** — weekly or on-demand playlists from recommendations + AI taste scoring
-- **AI Engine** — provider-agnostic layer (Anthropic/OpenAI/Cursor, API or CLI transport)
+- **AI Engine** — provider-agnostic layer (Anthropic/OpenAI/Cursor, API or CLI
+  transport)
 
 ## Prerequisites
 
 1. Spotify Developer app — **HTTPS redirect URI required** (Spotify rejects `http://`)
 2. Python 3.13+ and [uv](https://docs.astral.sh/uv/)
 3. Node.js 20+
-4. [mkcert](https://github.com/FiloSottile/mkcert) for local HTTPS (`brew install mkcert`)
-5. Global [lintro](https://github.com/lgtm-hq/py-lintro) for lint/review (`uv tool install lintro`)
+4. [mkcert](https://github.com/FiloSottile/mkcert) for local HTTPS
+   (`brew install mkcert`)
+5. Global [lintro](https://github.com/lgtm-hq/py-lintro) for lint/review
+   (`uv tool install lintro`)
 
 ## Spotify Redirect URI
 
-Spotify no longer accepts insecure (`http://`) redirect URIs. For local development, use:
+Spotify no longer accepts insecure (`http://`) redirect URIs. For local
+development, use:
 
-```
+```text
 https://localhost:8000/auth/callback
 ```
 
-Add that in your [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) under **Redirect URIs**.
+Add that in your
+[Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+under **Redirect URIs**.
 
 ## Setup
 
@@ -53,7 +62,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 and click **Connect Spotify**.
+Open <http://localhost:5173> and click **Connect Spotify**.
 
 ## Development
 
@@ -79,12 +88,13 @@ lintro review --uncommitted
 - `backend/.env` — Spotify credentials and secrets
 - `backend/config.yaml` — AI provider settings (`provider`, `transport`, `model`)
 
-Set `SPOTIFY_REDIRECT_URI` in `.env` to match exactly what you registered in the Spotify dashboard.
+Set `SPOTIFY_REDIRECT_URI` in `.env` to match exactly what you registered in
+the Spotify dashboard.
 
 ## API Overview
 
 | Endpoint | Description |
-|----------|-------------|
+| -------- | ----------- |
 | `GET /auth/login` | Start Spotify OAuth |
 | `GET /playlists` | List playlists |
 | `POST /cleanup/analyze/{id}` | Analyze playlist |

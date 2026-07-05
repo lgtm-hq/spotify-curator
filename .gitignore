@@ -124,3 +124,4 @@ out
 
 # act secrets file (DO NOT COMMIT)
 .secrets
+frontend/package-lock.json

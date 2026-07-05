@@ -41,10 +41,7 @@ tools:
 # AI — same defaults as ~/.lintro-config.yaml
 ai:
   enabled: true
-  provider: cursor
-  transport: cli
-  # model: auto                        # Cursor auto model selection
-  # api_key_env: CURSOR_API_KEY        # or `agent login` for keychain auth
+  provider: anthropic
   max_cost_usd: 2.00
   show_cost_estimate: true
   max_tokens: 4096
