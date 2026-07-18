@@ -29,7 +29,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:-sqlite:////data/spotify_curator.db}
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
     ports:
-      - "${APP_HOST:-0.0.0.0}:${APP_PORT:-8000}:8000"
+      - "${APP_HOST:-127.0.0.1}:${APP_PORT:-8000}:8000"
     volumes:
       - ./data:/data
     healthcheck:
