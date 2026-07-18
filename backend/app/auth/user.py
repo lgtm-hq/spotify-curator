@@ -27,7 +27,8 @@ def save_user_profile(db: Session, *, profile: dict[str, Any]) -> UserRecord:
     record.product = profile.get("product")
     record.connected_at = record.connected_at or utcnow()
     db.commit()
-    return record
+    typed_record: UserRecord = record
+    return typed_record
 
 
 def fetch_and_save_user_profile(db: Session, *, access_token: str) -> UserRecord:

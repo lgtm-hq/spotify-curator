@@ -23,7 +23,8 @@ def _get_record(db: Session) -> SpotifyUsageRecord:
         record = SpotifyUsageRecord(id=1, request_timestamps_json="[]")
         db.add(record)
         db.commit()
-    return record
+    typed_record: SpotifyUsageRecord = record
+    return typed_record
 
 
 def _load_timestamps(record: SpotifyUsageRecord) -> list[datetime]:

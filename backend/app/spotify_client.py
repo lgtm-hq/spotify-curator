@@ -69,7 +69,8 @@ def _load_token_record(db: Session) -> TokenRecord:
     record = db.get(TokenRecord, 1)
     if record is None:
         raise HTTPException(status_code=401, detail="Spotify not connected")
-    return record
+    typed_record: TokenRecord = record
+    return typed_record
 
 
 def _refresh_token_record(db: Session, record: TokenRecord) -> TokenRecord:

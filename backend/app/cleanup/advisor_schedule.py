@@ -155,7 +155,8 @@ def _get_or_create_schedule(db: Session) -> AdvisorScheduleRecord:
         db.add(record)
         db.commit()
         db.refresh(record)
-    return record
+    typed_record: AdvisorScheduleRecord = record
+    return typed_record
 
 
 def _schedule_to_dict(record: AdvisorScheduleRecord) -> dict[str, Any]:
