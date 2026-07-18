@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 import jwt
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
@@ -76,7 +76,7 @@ def create_session_token(*, user_id: str) -> str:
         "sub": user_id,
         "exp": datetime.now(UTC) + timedelta(hours=SESSION_HOURS),
     }
-    return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
+    return cast(str, jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM))
 
 
 def get_current_user(request: Request) -> str:

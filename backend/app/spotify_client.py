@@ -6,7 +6,7 @@ import asyncio
 import threading
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 import httpx
 import requests
@@ -69,7 +69,7 @@ def _load_token_record(db: Session) -> TokenRecord:
     record = db.get(TokenRecord, 1)
     if record is None:
         raise HTTPException(status_code=401, detail="Spotify not connected")
-    return record
+    return cast(TokenRecord, record)
 
 
 def _refresh_token_record(db: Session, record: TokenRecord) -> TokenRecord:
