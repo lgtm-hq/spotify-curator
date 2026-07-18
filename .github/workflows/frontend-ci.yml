@@ -4,11 +4,14 @@ name: CI - Frontend
 "on":
   push:
     branches: [main]
-    paths: ['frontend/**', '.github/workflows/frontend-ci.yml']
+    paths: ['frontend/**']
   pull_request:
     branches: [main, wip/v0-prototype]
     types: [opened, synchronize, reopened, ready_for_review]
-    paths: ['frontend/**', '.github/workflows/frontend-ci.yml']
+    # frontend/** only (not this workflow file): main has no frontend/ yet —
+    # the SPA lives on wip/v0-prototype until the port epics land — so a
+    # self-trigger on the workflow file alone can only fail on cd frontend.
+    paths: ['frontend/**']
   merge_group:
   workflow_dispatch:
 
