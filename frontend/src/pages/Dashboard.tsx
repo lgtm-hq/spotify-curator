@@ -67,6 +67,17 @@ export function Dashboard() {
           >
             Connect Spotify
           </button>
+          <p className="mt-4 text-xs text-zinc-500">
+            First time?{" "}
+            <a
+              href="https://github.com/lgtm-hq/spotify-curator/blob/main/docs/spotify-app-setup.md"
+              target="_blank"
+              rel="noreferrer"
+              className="text-emerald-400 hover:underline"
+            >
+              Set up your Spotify Developer app
+            </a>
+          </p>
         </div>
       );
     }
