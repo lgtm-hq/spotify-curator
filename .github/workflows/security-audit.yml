@@ -1,0 +1,57 @@
+---
+name: Security - OSV Audit
+
+"on":
+  pull_request:
+    branches: [main, wip/v0-prototype]
+  merge_group:
+    types: [checks_requested]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '30 5 * * 1'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: security-audit-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  security-audit:
+    # yamllint disable-line rule:line-length
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-security-audit.yml@443a687caa93b3afa306a066aae8d8a2b4e60c3c  # v0.59.0
+    with:
+      tooling-ref: '443a687caa93b3afa306a066aae8d8a2b4e60c3c'  # v0.59.0
+      # Org ruleset (checks-spotify-curator): security-audit / 🔐 Security Audit
+      job-name: '🔐 Security Audit'
+      # yamllint disable-line rule:line-length
+      lintro-image: ghcr.io/lgtm-hq/py-lintro@sha256:95b9fd9d62c3ca1227447467767ec915e78a7eef62282dd18c0b1c02ee4d3887
+      runner-image: ubuntu-24.04
+      upload-comment-artifact: ${{ github.event_name == 'pull_request' }}
+      egress-policy: block
+      egress-preset: quality
+    permissions:
+      # read: checkout lockfiles and manifests for OSV scanning
+      contents: read
+      # read: access package metadata used by the security audit tooling
+      packages: read
+
+  publish-security-audit-comment:
+    needs: security-audit
+    if: >-
+      always() &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    # yamllint disable-line rule:line-length
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-publish-security-audit-comment.yml@443a687caa93b3afa306a066aae8d8a2b4e60c3c  # v0.59.0
+    with:
+      tooling-ref: '443a687caa93b3afa306a066aae8d8a2b4e60c3c'  # v0.59.0
+      egress-policy: block
+      egress-preset: github-tooling
+    permissions:
+      # read: checkout repository for comment generation
+      contents: read
+      # write: post OSV audit summary on the PR
+      pull-requests: write
