@@ -36,6 +36,8 @@ logger = logging.getLogger(__name__)
 
 ALGORITHM = "HS256"
 SESSION_HOURS = 24 * 7
+SPOTIFY_OAUTH_ERROR_ACCESS_DENIED = "access_denied"
+SPOTIFY_OAUTH_ERROR_FALLBACK = "oauth_error"
 
 
 class MeResponse(BaseModel):
@@ -163,7 +165,12 @@ async def callback(
     """Handle Spotify OAuth callback."""
     settings = get_settings()
     if error:
-        return RedirectResponse(f"{settings.frontend_url}/?error={error}")
+        error_code = (
+            SPOTIFY_OAUTH_ERROR_ACCESS_DENIED
+            if error == SPOTIFY_OAUTH_ERROR_ACCESS_DENIED
+            else SPOTIFY_OAUTH_ERROR_FALLBACK
+        )
+        return RedirectResponse(f"{settings.frontend_url}/?error={error_code}")
     if not code or not state:
         raise HTTPException(status_code=400, detail="Missing code or state")
 
