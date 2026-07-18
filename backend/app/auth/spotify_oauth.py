@@ -27,7 +27,10 @@ def generate_state() -> str:
         "purpose": "spotify_oauth",
         "exp": datetime.now(UTC) + timedelta(minutes=STATE_MINUTES),
     }
-    return jwt.encode(payload, settings.secret_key, algorithm=STATE_ALGORITHM)
+    return cast(
+        str,
+        jwt.encode(payload, settings.secret_key, algorithm=STATE_ALGORITHM),
+    )
 
 
 def validate_state(state: str) -> bool:
@@ -41,7 +44,7 @@ def validate_state(state: str) -> bool:
         )
     except InvalidTokenError:
         return False
-    return payload.get("purpose") == "spotify_oauth"
+    return bool(payload.get("purpose") == "spotify_oauth")
 
 
 def build_auth_url(*, state: str) -> str:
