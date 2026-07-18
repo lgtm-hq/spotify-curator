@@ -1,3 +1,4 @@
+---
 # Compose v2 deployment for the production Dockerfile.
 #
 # Runtime data lives in ./data. Back up spotify_curator.db together with any
@@ -32,12 +33,13 @@ services:
       - ./data:/data
     healthcheck:
       test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs', timeout=5).read()",
-        ]
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8000/docs',
+          timeout=5).read()
       interval: 30s
       timeout: 5s
       start_period: 10s
