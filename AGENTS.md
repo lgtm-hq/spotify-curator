@@ -51,5 +51,4 @@ Spotify Curator is two services in one repo:
   `uv run mypy backend/app`) remain available for spot checks.
 - Frontend lint: `npm run lint` (oxlint). Frontend build: `npm run build`
   (`tsc -b && vite build`).
-- Backend tests: `uv run pytest`. `testpaths` points at `backend/tests`,
-  which does not exist yet, so pytest currently collects 0 tests.
+- Backend tests: `uv run pytest`. `testpaths` points at `backend/tests`.

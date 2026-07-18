@@ -13,10 +13,12 @@
 __pycache__
 *.py[cod]
 
+.env
 backend/.env
 backend/certs
 backend/*.db
 backend/spotify_curator.db*
+data/
 
 frontend/dist
 frontend/node_modules

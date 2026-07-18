@@ -3,6 +3,7 @@
 backend/certs/*.pem
 backend/.venv/
 .venv/
+test_samples/
 node_modules/
 frontend/dist/
 .lintro/

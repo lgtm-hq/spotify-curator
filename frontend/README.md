@@ -5,12 +5,12 @@ React + TypeScript + Vite SPA for the Spotify Curator backend.
 ## Development
 
 ```bash
-bun install
-bun run dev
+npm install
+npm run dev
 ```
 
 ## Scripts
 
-- `bun run dev` — Vite dev server
-- `bun run build` — type-check and production build
-- `bun run lint` — oxlint
+- `npm run dev` — Vite dev server
+- `npm run build` — type-check and production build
+- `npm run lint` — oxlint

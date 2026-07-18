@@ -1,14 +1,14 @@
 # syntax=docker/dockerfile:1.7
 
-FROM oven/bun:1-debian@sha256:9dba1a1b43ce28c9d7931bfc4eb00feb63b0114720a0277a8f939ae4dfc9db6f AS frontend-build
+FROM node:24-bookworm-slim AS frontend-build
 
 WORKDIR /app/frontend
 
-COPY frontend/package.json frontend/bun.lock ./
-RUN bun install --frozen-lockfile
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
 
 COPY frontend/ ./
-RUN bun run build
+RUN npm run build
 
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim@sha256:531f855bda2c73cd6ef67d56b733b357cea384185b3022bd09f05e002cd144ca AS runtime
 

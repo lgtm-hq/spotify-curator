@@ -1,9 +1,9 @@
 ---
 # Compose v2 deployment for the production Dockerfile.
 #
-# Runtime data lives in ./data. Back up spotify_curator.db together with any
-# spotify_curator.db-wal and spotify_curator.db-shm files to capture SQLite WAL
-# state consistently.
+# Runtime data lives in ./data. For backups, stop the app before copying
+# spotify_curator.db*, use SQLite's backup API, or take an atomic filesystem
+# snapshot.
 services:
   data-init:
     image: ${SPOTIFY_CURATOR_IMAGE:-spotify-curator:latest}
@@ -27,8 +27,9 @@ services:
         required: false
     environment:
       DATABASE_URL: ${DATABASE_URL:-sqlite:////data/spotify_curator.db}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
     ports:
-      - "${APP_HOST:-127.0.0.1}:${APP_PORT:-8000}:8000"
+      - "${APP_HOST:-0.0.0.0}:${APP_PORT:-8000}:8000"
     volumes:
       - ./data:/data
     healthcheck:
