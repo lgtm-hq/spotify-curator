@@ -37,13 +37,15 @@ class SPAStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope: Scope) -> Response:
         """Return a static asset response or the SPA shell for client routes."""
         try:
-            return await super().get_response(path, scope)
+            response: Response = await super().get_response(path, scope)
+            return response
         except HTTPException as exc:
             if exc.status_code != 404 or not self._should_fallback_to_index(
                 path, scope
             ):
                 raise
-            return await super().get_response("index.html", scope)
+            response = await super().get_response("index.html", scope)
+            return response
 
     def _should_fallback_to_index(self, path: str, scope: Scope) -> bool:
         """Return whether a 404 should fall back to the SPA shell."""
