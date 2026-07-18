@@ -19,6 +19,7 @@ dependencies = [
   "spotipy>=2.24.0",
   "sqlalchemy>=2.0.36",
   "uvicorn[standard]>=0.32.0",
+  "alembic>=1.13",
 ]
 
 [dependency-groups]
@@ -31,6 +32,7 @@ dev = [
   "mypy>=1.15.0",
   "bandit>=1.9.4",
   "pydoclint>=0.8.3",
+  "assertpy>=1.1",
 ]
 
 [build-system]

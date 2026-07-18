@@ -3,13 +3,19 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from datetime import UTC, datetime
+from pathlib import Path
 
-from sqlalchemy import DateTime, String, Text, create_engine
-from sqlalchemy.engine import Engine
+from alembic.config import Config
+from sqlalchemy import DateTime, String, Text, create_engine, event
+from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
+from alembic import command
 from app.config import get_settings
+
+ALEMBIC_INI_PATH = Path(__file__).resolve().parent.parent / "alembic.ini"
 
 
 class Base(DeclarativeBase):
@@ -177,64 +183,50 @@ class AdvisorScheduleRunRecord(Base):
 
 
 settings = get_settings()
+
+
+def _is_sqlite_database_url(database_url: str) -> bool:
+    """Return whether the database URL targets SQLite."""
+    return make_url(database_url).drivername.startswith("sqlite")
+
+
+def _connect_args(database_url: str) -> dict[str, object]:
+    """Return SQLAlchemy connect arguments for the configured database."""
+    if _is_sqlite_database_url(database_url):
+        return {"check_same_thread": False}
+    return {}
+
+
+@event.listens_for(Engine, "connect")
+def _set_sqlite_wal(dbapi_connection: object, _connection_record: object) -> None:
+    """Enable WAL mode for SQLite connections."""
+    if not isinstance(dbapi_connection, sqlite3.Connection):
+        return
+
+    cursor = dbapi_connection.cursor()
+    try:
+        cursor.execute("PRAGMA journal_mode=WAL")
+    finally:
+        cursor.close()
+
+
+def _alembic_config() -> Config:
+    """Build Alembic configuration for the current application settings."""
+    config = Config(str(ALEMBIC_INI_PATH))
+    config.set_main_option("sqlalchemy.url", get_settings().database_url)
+    return config
+
+
 engine = create_engine(
     settings.database_url,
-    connect_args={"check_same_thread": False},
+    connect_args=_connect_args(settings.database_url),
 )
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
 def init_db() -> None:
-    """Create database tables."""
-    Base.metadata.create_all(bind=engine)
-    _migrate_discover_runs(engine)
-    _migrate_curate_sessions(engine)
-
-
-def _migrate_curate_sessions(db_engine: Engine) -> None:
-    """Add curate_sessions.spotify_playlist_id for existing SQLite databases."""
-    from sqlalchemy import inspect, text
-
-    inspector = inspect(db_engine)
-    if "curate_sessions" not in inspector.get_table_names():
-        return
-    columns = {column["name"] for column in inspector.get_columns("curate_sessions")}
-    if "spotify_playlist_id" in columns:
-        return
-    with db_engine.connect() as conn:
-        conn.execute(
-            text(
-                "ALTER TABLE curate_sessions ADD COLUMN spotify_playlist_id VARCHAR(64)"
-            ),
-        )
-        conn.commit()
-
-
-def _migrate_discover_runs(db_engine: Engine) -> None:
-    """Add discover_runs.status for existing SQLite databases."""
-    from sqlalchemy import inspect, text
-
-    inspector = inspect(db_engine)
-    if "discover_runs" not in inspector.get_table_names():
-        return
-    columns = {column["name"] for column in inspector.get_columns("discover_runs")}
-    if "status" in columns:
-        return
-    with db_engine.connect() as conn:
-        conn.execute(
-            text(
-                "ALTER TABLE discover_runs "
-                "ADD COLUMN status VARCHAR(32) DEFAULT 'pending' NOT NULL",
-            ),
-        )
-        conn.execute(
-            text(
-                "UPDATE discover_runs "
-                "SET status = 'saved' "
-                "WHERE playlist_id IS NOT NULL AND playlist_id != ''",
-            ),
-        )
-        conn.commit()
+    """Apply database migrations."""
+    command.upgrade(_alembic_config(), "head")
 
 
 def utcnow() -> datetime:
