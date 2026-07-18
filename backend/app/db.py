@@ -7,12 +7,12 @@ import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
+from alembic.command import upgrade
 from alembic.config import Config
 from sqlalchemy import DateTime, String, Text, create_engine, event
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
-from alembic import command
 from app.config import get_settings
 
 ALEMBIC_INI_PATH = Path(__file__).resolve().parent.parent / "alembic.ini"
@@ -187,7 +187,8 @@ settings = get_settings()
 
 def _is_sqlite_database_url(database_url: str) -> bool:
     """Return whether the database URL targets SQLite."""
-    return make_url(database_url).drivername.startswith("sqlite")
+    drivername: str = make_url(database_url).drivername
+    return drivername.startswith("sqlite")
 
 
 def _connect_args(database_url: str) -> dict[str, object]:
@@ -226,7 +227,7 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 def init_db() -> None:
     """Apply database migrations."""
-    command.upgrade(_alembic_config(), "head")
+    upgrade(_alembic_config(), "head")
 
 
 def utcnow() -> datetime:
