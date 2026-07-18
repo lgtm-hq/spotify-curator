@@ -30,11 +30,8 @@ jobs:
     with:
       # Org ruleset (checks-spotify-curator): codeql / 🔬 CodeQL Analysis
       job-name: '🔬 CodeQL Analysis'
-      # actions only for now: main has no app code yet (the prototype lives
-      # on wip/v0-prototype until the port epics land), and CodeQL hard-fails
-      # a language with zero source files ("no source code seen"). Expand to
-      # python,javascript-typescript with the first port PR — tracked in #44.
-      languages: actions
+      # App code lands with this PR; scan python + JS/TS + Actions.
+      languages: python,javascript-typescript,actions
       build-mode: none
       category: '/language:all'
       tooling-ref: '443a687caa93b3afa306a066aae8d8a2b4e60c3c'  # v0.59.0
