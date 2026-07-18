@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -27,7 +27,7 @@ def save_user_profile(db: Session, *, profile: dict[str, Any]) -> UserRecord:
     record.product = profile.get("product")
     record.connected_at = record.connected_at or utcnow()
     db.commit()
-    return cast(UserRecord, record)
+    return record
 
 
 def fetch_and_save_user_profile(db: Session, *, access_token: str) -> UserRecord:

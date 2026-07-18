@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime
-from typing import Any, cast
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -155,7 +155,7 @@ def _get_or_create_schedule(db: Session) -> AdvisorScheduleRecord:
         db.add(record)
         db.commit()
         db.refresh(record)
-    return cast(AdvisorScheduleRecord, record)
+    return record
 
 
 def _schedule_to_dict(record: AdvisorScheduleRecord) -> dict[str, Any]:

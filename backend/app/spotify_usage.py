@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
-from typing import Any, Literal, cast
+from typing import Any, Literal
 
 from spotipy.exceptions import SpotifyException
 from sqlalchemy.orm import Session
@@ -23,7 +23,7 @@ def _get_record(db: Session) -> SpotifyUsageRecord:
         record = SpotifyUsageRecord(id=1, request_timestamps_json="[]")
         db.add(record)
         db.commit()
-    return cast(SpotifyUsageRecord, record)
+    return record
 
 
 def _load_timestamps(record: SpotifyUsageRecord) -> list[datetime]:
