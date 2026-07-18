@@ -9,7 +9,7 @@ from pathlib import Path
 
 from alembic.command import upgrade
 from alembic.config import Config
-from sqlalchemy import DateTime, String, Text, create_engine, event
+from sqlalchemy import DateTime, Index, String, Text, create_engine, event
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
@@ -34,17 +34,23 @@ class TokenRecord(Base):
     scope: Mapped[str] = mapped_column(String(512), default="")
 
 
-class UserRecord(Base):
-    """Spotify profile for the currently connected account."""
+class User(Base):
+    """Spotify OAuth identity for an authenticated user."""
 
     __tablename__ = "users"
+    __table_args__ = (Index("ix_users_spotify_id", "spotify_id", unique=True),)
 
-    id: Mapped[int] = mapped_column(primary_key=True, default=1)
-    spotify_id: Mapped[str] = mapped_column(String(64), default="")
+    id: Mapped[int] = mapped_column(primary_key=True)
+    spotify_id: Mapped[str] = mapped_column(String(64))
     display_name: Mapped[str] = mapped_column(String(256), default="")
     email: Mapped[str | None] = mapped_column(String(256), nullable=True)
     image_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     product: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    is_admin: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+    )
     connected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 

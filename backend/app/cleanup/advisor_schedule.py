@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.cleanup.suggest_jobs import (
@@ -18,7 +19,7 @@ from app.cleanup.suggest_options import CleanupSuggestOptions
 from app.db import (
     AdvisorScheduleRecord,
     AdvisorScheduleRunRecord,
-    UserRecord,
+    User,
     dumps_json,
     loads_json,
     utcnow,
@@ -82,7 +83,9 @@ def run_scheduled_advisor() -> None:
             logger.info("Advisor schedule disabled; skipping run")
             return
 
-        user = db.get(UserRecord, 1)
+        user = db.scalars(
+            select(User).order_by(User.connected_at.desc(), User.id.desc()),
+        ).first()
         if user is None or not user.spotify_id:
             logger.warning("Advisor schedule skipped: no connected user")
             return

@@ -20,15 +20,19 @@ from app.auth.spotify_oauth import (
     generate_state,
     validate_state,
 )
-from app.auth.user import fetch_and_save_user_profile, save_user_profile, user_to_dict
+from app.auth.user import (
+    fetch_and_save_user_profile,
+    get_user_by_spotify_id,
+    user_to_dict,
+)
 from app.config import get_settings
 from app.db import (
     SessionLocal,
     TasteProfileRecord,
     TokenRecord,
-    UserRecord,
+    User,
 )
-from app.spotify_client import call_spotify, create_spotify_client, get_spotify_client
+from app.spotify_client import create_spotify_client
 from app.taste.engine import build_taste_profile, load_cached_taste_profile
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -82,8 +86,8 @@ def create_session_token(*, user_id: str) -> str:
     return token
 
 
-def get_current_user(request: Request) -> str:
-    """Validate session cookie and return user id."""
+def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
+    """Validate session cookie and return the current user."""
     settings = get_settings()
     token = request.cookies.get("session")
     if not token:
@@ -93,7 +97,10 @@ def get_current_user(request: Request) -> str:
         sub = payload.get("sub")
         if not sub:
             raise HTTPException(status_code=401, detail="Invalid session")
-        return str(sub)
+        user = get_user_by_spotify_id(db, spotify_id=str(sub))
+        if user is None:
+            raise HTTPException(status_code=401, detail="Invalid session")
+        return user
     except InvalidTokenError as exc:
         raise HTTPException(status_code=401, detail="Invalid session") from exc
 
@@ -105,16 +112,15 @@ def _taste_metadata(db: Session) -> tuple[bool, str | None]:
     return True, record.updated_at.isoformat()
 
 
-def _build_me_response(db: Session, *, user_id: str) -> MeResponse:
-    user = db.get(UserRecord, 1)
+def _build_me_response(db: Session, *, user: User) -> MeResponse:
     has_taste, taste_updated_at = _taste_metadata(db)
     return MeResponse(
         connected=True,
-        user_id=user_id,
-        display_name=user.display_name if user else None,
-        email=user.email if user else None,
-        image_url=user.image_url if user else None,
-        connected_at=user.connected_at.isoformat() if user else None,
+        user_id=user.spotify_id,
+        display_name=user.display_name,
+        email=user.email,
+        image_url=user.image_url,
+        connected_at=user.connected_at.isoformat(),
         has_taste_profile=has_taste,
         taste_updated_at=taste_updated_at,
     )
@@ -139,8 +145,8 @@ def _warm_taste_profile_after_login() -> None:
 
 
 def _clear_connected_account(db: Session) -> None:
-    """Remove stored credentials and profile data for account switching."""
-    for model in (TokenRecord, UserRecord, TasteProfileRecord):
+    """Remove stored credentials and per-session profile data."""
+    for model in (TokenRecord, TasteProfileRecord):
         record = db.get(model, 1)
         if record is not None:
             db.delete(record)
@@ -216,36 +222,30 @@ async def callback(
 
 @router.get("/me", response_model=MeResponse)
 async def me(
-    user_id: str = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> MeResponse:
     """Return current authenticated user and profile status."""
-    user = db.get(UserRecord, 1)
-    if user is None and db.get(TokenRecord, 1) is not None:
-        sp = await get_spotify_client(db)
-        profile = await call_spotify(sp.me)
-        save_user_profile(db, profile=profile)
-    return _build_me_response(db, user_id=user_id)
+    return _build_me_response(db, user=user)
 
 
 @router.get("/account", response_model=AccountResponse)
 def account(
-    _user: str = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> AccountResponse:
     """Return account dashboard details and storage overview."""
     has_taste, taste_updated_at = _taste_metadata(db)
     settings = get_settings()
     return AccountResponse(
-        user=user_to_dict(db.get(UserRecord, 1)),
+        user=user_to_dict(user),
         has_taste_profile=has_taste,
         taste_updated_at=taste_updated_at,
         data_storage={
             "database": settings.database_url.split("://", 1)[0],
             "description": (
-                "This app stores one Spotify account at a time in a local database "
-                "on the server. Logging out clears tokens and your taste profile so "
-                "another account can connect."
+                "This app stores Spotify account profiles in a local database on "
+                "the server. Logging out clears tokens and your taste profile."
             ),
             "stored_data": [
                 {

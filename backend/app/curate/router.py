@@ -15,6 +15,7 @@ from app.curate.prompt_engine import (
     save_playlist_to_spotify,
     start_session,
 )
+from app.db import User
 from app.errors import raise_curate_http_error
 from app.spotify_client import get_spotify_client
 from app.taste.engine import build_taste_profile, load_cached_taste_profile
@@ -45,7 +46,7 @@ class SaveRequest(BaseModel):
 
 @router.post("/start")
 async def curate_start(
-    _user: str = Depends(get_current_user),
+    _user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Start mood concierge interview."""
@@ -62,7 +63,7 @@ async def curate_start(
 @router.post("/answer")
 async def curate_answer(
     body: AnswerRequest,
-    _user: str = Depends(get_current_user),
+    _user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Answer interview question."""
@@ -84,7 +85,7 @@ async def curate_answer(
 @router.post("/build")
 async def curate_build(
     body: BuildRequest,
-    _user: str = Depends(get_current_user),
+    _user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Build playlist from interview brief."""
@@ -105,7 +106,7 @@ async def curate_build(
 @router.post("/save")
 async def curate_save(
     body: SaveRequest,
-    _user: str = Depends(get_current_user),
+    _user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Save curated playlist to Spotify."""

@@ -7,8 +7,9 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
+from alembic.command import upgrade
 from assertpy import assert_that
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, text
 
 
 def _database_url(database_path: Path) -> str:
@@ -65,8 +66,81 @@ def test_init_db_runs_alembic_upgrade_for_fresh_database(
 
             assert_that("alembic_version" in actual_tables).is_true()
             assert_that(actual_columns).is_equal_to(expected_columns)
+            assert_that(
+                {
+                    index["name"]: index["unique"]
+                    for index in inspector.get_indexes("users")
+                },
+            ).contains_entry({"ix_users_spotify_id": 1})
         finally:
             inspector_engine.dispose()
+    finally:
+        db_module.engine.dispose()
+
+
+def test_users_oauth_identity_migration_backfills_legacy_user(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify legacy singleton user data upgrades to an admin identity."""
+    database_path = tmp_path / "legacy.db"
+    db_module = _load_db_module(
+        monkeypatch=monkeypatch,
+        database_path=database_path,
+    )
+    connected_at = "2026-07-18 10:07:00"
+
+    try:
+        upgrade(db_module._alembic_config(), "0001_baseline")
+        with db_module.engine.begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO users "
+                    "(id, spotify_id, display_name, email, image_url, product, "
+                    "connected_at) "
+                    "VALUES "
+                    "(:id, :spotify_id, :display_name, :email, :image_url, "
+                    ":product, :connected_at)",
+                ),
+                {
+                    "id": 1,
+                    "spotify_id": "legacy-spotify-id",
+                    "display_name": "Legacy User",
+                    "email": "legacy@example.com",
+                    "image_url": "https://example.com/avatar.jpg",
+                    "product": "premium",
+                    "connected_at": connected_at,
+                },
+            )
+
+        upgrade(db_module._alembic_config(), "head")
+
+        with db_module.engine.connect() as connection:
+            row = (
+                connection.execute(
+                    text(
+                        "SELECT spotify_id, is_admin, created_at, connected_at "
+                        "FROM users WHERE id = 1",
+                    ),
+                )
+                .mappings()
+                .one()
+            )
+
+        inspector_engine = create_engine(_database_url(database_path))
+        try:
+            inspector = inspect(inspector_engine)
+            indexes = {
+                index["name"]: index["unique"]
+                for index in inspector.get_indexes("users")
+            }
+        finally:
+            inspector_engine.dispose()
+
+        assert_that(row["spotify_id"]).is_equal_to("legacy-spotify-id")
+        assert_that(row["is_admin"]).is_equal_to(1)
+        assert_that(row["created_at"]).is_equal_to(row["connected_at"])
+        assert_that(indexes).contains_entry({"ix_users_spotify_id": 1})
     finally:
         db_module.engine.dispose()
 

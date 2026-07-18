@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.auth.router import get_current_user, get_db
-from app.db import DiscoverRunRecord
+from app.db import DiscoverRunRecord, User
 from app.discover.service import (
     delete_discovery_run,
     generate_discovery_proposal,
@@ -37,7 +37,7 @@ class DiscoverRemoveRequest(BaseModel):
 
 @router.post("/generate")
 async def discover_generate(
-    _user: str = Depends(get_current_user),
+    _user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Generate a discovery playlist proposal for user review."""
@@ -51,7 +51,7 @@ async def discover_generate(
 @router.get("/runs/{run_id}")
 async def discover_run_detail(
     run_id: str,
-    _user: str = Depends(get_current_user),
+    _user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Return full discovery run details including tracks and rationale."""
@@ -65,7 +65,7 @@ async def discover_run_detail(
 @router.delete("/runs/{run_id}")
 async def discover_run_delete(
     run_id: str,
-    _user: str = Depends(get_current_user),
+    _user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
     """Delete a discovery run from history (history only)."""
@@ -80,7 +80,7 @@ async def discover_run_delete(
 async def discover_run_remove(
     run_id: str,
     body: DiscoverRemoveRequest,
-    _user: str = Depends(get_current_user),
+    _user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
     """Remove a discovery run from history and/or delete its Spotify playlist."""
@@ -102,7 +102,7 @@ async def discover_run_remove(
 async def discover_run_save(
     run_id: str,
     body: DiscoverSaveRequest,
-    _user: str = Depends(get_current_user),
+    _user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Create the Spotify playlist after user approval."""
@@ -120,7 +120,7 @@ async def discover_run_save(
 
 @router.get("/history")
 async def discover_history(
-    _user: str = Depends(get_current_user),
+    _user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[dict[str, Any]]:
     """List past discovery runs."""

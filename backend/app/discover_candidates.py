@@ -7,9 +7,10 @@ from typing import Any
 
 import spotipy
 from spotipy.exceptions import SpotifyException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db import UserRecord
+from app.db import User
 from app.playlists.cache import load_playlist_list_cache, repair_playlist_list_cache
 from app.playlists.service import fetch_playlist_tracks_lite
 from app.spotify_candidates import _map_candidate_tracks, _track_to_candidate
@@ -57,7 +58,9 @@ def collect_known_track_ids(sp: spotipy.Spotify, db: Session | None = None) -> s
     if db is None:
         return known
 
-    user = db.get(UserRecord, 1)
+    user = db.scalars(
+        select(User).order_by(User.connected_at.desc(), User.id.desc())
+    ).first()
     spotify_user_id = user.spotify_id if user and user.spotify_id else None
     playlists = repair_playlist_list_cache(
         db,

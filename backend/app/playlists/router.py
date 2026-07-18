@@ -11,11 +11,12 @@ from spotipy.exceptions import SpotifyException
 from sqlalchemy.orm import Session
 
 from app.auth.router import get_current_user, get_db
+from app.auth.user import get_user_by_spotify_id
 from app.cleanup.playlist_scan import (
     load_all_cached_stats,
     refresh_owned_playlist_scans,
 )
-from app.db import SessionLocal, TokenRecord, UserRecord
+from app.db import SessionLocal, TokenRecord, User
 from app.playlists.cache import (
     load_playlist_list_cache,
     normalize_playlists_for_user,
@@ -122,24 +123,20 @@ def _curated_sources_for_response(db: Session) -> dict[str, CuratedPlaylistSourc
     }
 
 
-def _build_playlists_response(
-    db: Session, *, user_id: str | None = None
-) -> PlaylistsResponse:
+def _build_playlists_response(db: Session, *, user: User) -> PlaylistsResponse:
     """Return cached playlists and current Spotify usage metadata."""
-    user = db.get(UserRecord, 1)
-    spotify_user_id = user.spotify_id if user and user.spotify_id else user_id
     cached = repair_playlist_list_cache(
         db,
-        current_user_id=spotify_user_id,
-        current_user_display_name=user.display_name if user else None,
+        current_user_id=user.spotify_id,
+        current_user_display_name=user.display_name,
     )
     if cached is None:
         cached = playlists_from_scan_cache(db) or []
-    if cached and spotify_user_id:
+    if cached:
         cached = normalize_playlists_for_user(
             cached,
-            current_user_id=spotify_user_id,
-            current_user_display_name=user.display_name if user else None,
+            current_user_id=user.spotify_id,
+            current_user_display_name=user.display_name,
         )
     last_fetched = playlist_cache_updated_at(db)
     usage = usage_status(db, last_fetched_at=last_fetched)
@@ -161,27 +158,27 @@ def _build_playlists_response(
 
 @router.get("/usage", response_model=SpotifyUsageStatus)
 async def get_spotify_usage(
-    user_id: str = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> SpotifyUsageStatus:
     """Return live Spotify API usage and rate-limit state for global UI."""
-    del user_id
+    del current_user
     usage = usage_status(db, last_fetched_at=playlist_cache_updated_at(db))
     return SpotifyUsageStatus.model_validate(usage)
 
 
 @router.get("", response_model=PlaylistsResponse)
 async def get_playlists(
-    user_id: str = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> PlaylistsResponse:
     """Return cached playlists without calling Spotify."""
-    return _build_playlists_response(db, user_id=user_id)
+    return _build_playlists_response(db, user=current_user)
 
 
 @router.post("/refresh", response_model=PlaylistsResponse)
 async def refresh_playlists(
-    user_id: str = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> PlaylistsResponse:
     """Fetch playlists from Spotify and update the local cache."""
@@ -199,24 +196,21 @@ async def refresh_playlists(
 
     try:
         sp = await get_spotify_client(db)
-        user = db.get(UserRecord, 1)
-        spotify_user_id = user.spotify_id if user and user.spotify_id else user_id
         playlists = await call_spotify(
             list_playlists,
             sp,
-            current_user_id=spotify_user_id,
+            current_user_id=current_user.spotify_id,
         )
         playlists = normalize_playlists_for_user(
             playlists,
-            current_user_id=spotify_user_id,
-            current_user_display_name=user.display_name if user else None,
+            current_user_id=current_user.spotify_id,
+            current_user_display_name=current_user.display_name,
         )
         save_playlist_list_cache(db, playlists)
         page_estimate = max(1, (len(playlists) + 49) // 50)
         record_spotify_request(db, count=page_estimate)
         last_fetched = playlist_cache_updated_at(db)
         fresh_usage = usage_status(db, last_fetched_at=last_fetched)
-        user = db.get(UserRecord, 1)
         return PlaylistsResponse(
             playlists=playlists,
             last_fetched_at=fresh_usage["last_fetched_at"],
@@ -252,7 +246,7 @@ async def refresh_playlists(
 
 @router.get("/scan-summaries")
 async def get_scan_summaries(
-    _user: str = Depends(get_current_user),
+    _user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, dict[str, object]]:
     """Return cached cleanup scan stats keyed by playlist id."""
@@ -262,28 +256,25 @@ async def get_scan_summaries(
 def _run_scan_refresh(current_user_id: str) -> None:
     db = SessionLocal()
     try:
-        user = db.get(UserRecord, 1)
-        spotify_user_id = (
-            user.spotify_id if user and user.spotify_id else current_user_id
-        )
+        user = get_user_by_spotify_id(db, spotify_id=current_user_id)
         sp = get_spotify_client_sync(db)
         cached_playlists = repair_playlist_list_cache(
             db,
-            current_user_id=spotify_user_id,
+            current_user_id=current_user_id,
             current_user_display_name=user.display_name if user else None,
         )
         if cached_playlists is None:
-            cached_playlists = list_playlists(sp, current_user_id=spotify_user_id)
+            cached_playlists = list_playlists(sp, current_user_id=current_user_id)
         else:
             cached_playlists = normalize_playlists_for_user(
                 cached_playlists,
-                current_user_id=spotify_user_id,
+                current_user_id=current_user_id,
                 current_user_display_name=user.display_name if user else None,
             )
         refresh_owned_playlist_scans(
             sp,
             db,
-            current_user_id=spotify_user_id,
+            current_user_id=current_user_id,
             playlists=cached_playlists,
             current_user_display_name=user.display_name if user else None,
         )
@@ -296,7 +287,7 @@ def _run_scan_refresh(current_user_id: str) -> None:
 @router.post("/scan-summaries/refresh")
 async def refresh_scan_summaries(
     background_tasks: BackgroundTasks,
-    user_id: str = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
     """Background refresh of cleanup stats for all owned playlists."""
@@ -314,7 +305,7 @@ async def refresh_scan_summaries(
     token = db.get(TokenRecord, 1)
     if token is None:
         raise HTTPException(status_code=401, detail="Spotify not connected")
-    background_tasks.add_task(_run_scan_refresh, user_id)
+    background_tasks.add_task(_run_scan_refresh, current_user.spotify_id)
     return {"status": "scanning"}
 
 
@@ -344,7 +335,7 @@ async def _ensure_can_edit(
 @router.get("/{playlist_id}", response_model=PlaylistDetail)
 async def get_playlist_detail(
     playlist_id: str,
-    user_id: str = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> PlaylistDetail:
     """Get playlist with tracks."""
@@ -354,7 +345,7 @@ async def get_playlist_detail(
             get_playlist,
             sp,
             playlist_id=playlist_id,
-            current_user_id=user_id,
+            current_user_id=current_user.spotify_id,
         )
         record_spotify_request(db, count=max(1, (len(detail.tracks) + 49) // 50 + 1))
         return detail
@@ -371,12 +362,17 @@ async def get_playlist_detail(
 async def remove_playlist_tracks(
     playlist_id: str,
     body: RemoveTracksRequest,
-    user_id: str = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, int]:
     """Remove tracks from a playlist."""
     sp = await get_spotify_client(db)
-    await _ensure_can_edit(db, sp, playlist_id=playlist_id, user_id=user_id)
+    await _ensure_can_edit(
+        db,
+        sp,
+        playlist_id=playlist_id,
+        user_id=current_user.spotify_id,
+    )
     if body.track_uris:
         removed = await call_spotify(
             remove_tracks_by_uri,
@@ -399,12 +395,17 @@ async def remove_playlist_tracks(
 async def reorder_playlist_tracks(
     playlist_id: str,
     body: ReorderTracksRequest,
-    user_id: str = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
     """Reorder tracks within a playlist."""
     sp = await get_spotify_client(db)
-    await _ensure_can_edit(db, sp, playlist_id=playlist_id, user_id=user_id)
+    await _ensure_can_edit(
+        db,
+        sp,
+        playlist_id=playlist_id,
+        user_id=current_user.spotify_id,
+    )
     await call_spotify(
         reorder_tracks,
         sp,
@@ -421,7 +422,7 @@ async def reorder_playlist_tracks(
 async def update_playlist(
     playlist_id: str,
     body: UpdatePlaylistRequest,
-    user_id: str = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> PlaylistSummary:
     """Update playlist name, description, or visibility."""
@@ -429,12 +430,17 @@ async def update_playlist(
         raise HTTPException(status_code=400, detail="No playlist fields to update.")
     try:
         sp = await get_spotify_client(db)
-        await _ensure_can_edit(db, sp, playlist_id=playlist_id, user_id=user_id)
+        await _ensure_can_edit(
+            db,
+            sp,
+            playlist_id=playlist_id,
+            user_id=current_user.spotify_id,
+        )
         updated = await call_spotify(
             update_playlist_metadata,
             sp,
             playlist_id=playlist_id,
-            current_user_id=user_id,
+            current_user_id=current_user.spotify_id,
             name=body.name,
             description=body.description,
             public=body.public,
@@ -454,13 +460,18 @@ async def update_playlist(
 @router.delete("/{playlist_id}")
 async def delete_playlist(
     playlist_id: str,
-    user_id: str = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
     """Remove a playlist from the user's Spotify library."""
     try:
         sp = await get_spotify_client(db)
-        await _ensure_can_edit(db, sp, playlist_id=playlist_id, user_id=user_id)
+        await _ensure_can_edit(
+            db,
+            sp,
+            playlist_id=playlist_id,
+            user_id=current_user.spotify_id,
+        )
         await call_spotify(unfollow_playlist, sp, playlist_id=playlist_id)
         record_spotify_request(db, count=1)
         purge_playlist_local_references(db, playlist_id=playlist_id)
