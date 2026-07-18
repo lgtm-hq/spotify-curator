@@ -13,7 +13,10 @@ from app.spotify_client import create_spotify_client
 
 def get_user_by_spotify_id(db: Session, *, spotify_id: str) -> User | None:
     """Return the user matching a Spotify account id."""
-    return db.scalars(select(User).where(User.spotify_id == spotify_id)).one_or_none()
+    record: User | None = db.scalars(
+        select(User).where(User.spotify_id == spotify_id),
+    ).one_or_none()
+    return record
 
 
 def save_user_profile(db: Session, *, profile: dict[str, Any]) -> User:
