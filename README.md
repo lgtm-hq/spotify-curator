@@ -55,6 +55,13 @@ ai:
   model: claude-sonnet-4-20250514
 ```
 
+## Deployment
+
+See [docs/deployment.md](docs/deployment.md) for the full deployment guide covering
+local development, Docker (single-container), Docker Compose with Caddy TLS (arriving
+in [#18](https://github.com/lgtm-hq/spotify-curator/issues/18)), SQLite backup and
+restore, and the upgrade procedure.
+
 ## API Overview
 
 | Endpoint | Description |
