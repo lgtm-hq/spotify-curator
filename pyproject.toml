@@ -1,0 +1,130 @@
+[project]
+name = "spotify-curator"
+version = "0.1.0"
+description = "Self-hosted Spotify playlist management tool"
+requires-python = ">=3.13"
+dependencies = [
+  "apscheduler>=3.10.4",
+  "anthropic>=0.40.0",
+  "cryptography>=43.0.0",
+  "fastapi>=0.115.0",
+  "httpx>=0.28.0",
+  "numpy>=2.1.0",
+  "openai>=1.55.0",
+  "pydantic-settings>=2.6.0",
+  "pyjwt>=2.10.0",
+  "pyyaml>=6.0.2",
+  "rapidfuzz>=3.10.0",
+  "scikit-learn>=1.5.0",
+  "spotipy>=2.24.0",
+  "sqlalchemy>=2.0.36",
+  "uvicorn[standard]>=0.32.0",
+  "alembic>=1.13",
+]
+
+[dependency-groups]
+dev = [
+  "lintro>=0.60.1",
+  "pytest>=8.0",
+  "pytest-cov>=6.0",
+  "ruff>=0.15.9",
+  "black>=26.3.1",
+  "mypy>=1.15.0",
+  "bandit>=1.9.4",
+  "pydoclint>=0.8.3",
+  "assertpy>=1.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend/app"]
+
+# ── Lintro master config ─────────────────────────────────────────────────────
+
+[tool.lintro]
+line_length = 88
+tool_order = "priority"
+
+[tool.lintro.post_checks]
+enabled = true
+tools = ["black"]
+enforce_failure = true
+
+# ── Ruff ─────────────────────────────────────────────────────────────────────
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+src = ["backend"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "COM", "N", "D", "UP", "B", "C4", "SIM"]
+ignore = ["COM812"]                                                    # conflicts with ruff format (trailing commas)
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["D104"]
+"backend/app/main.py" = ["D103"]
+"backend/app/**/router.py" = [
+  "B008", # FastAPI Depends() in parameter defaults is required by the framework
+]
+"backend/app/ai/prompts/*.py" = [
+  "E501", # Prompt template strings are intentionally long single-line prose
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+# ── Black ────────────────────────────────────────────────────────────────────
+
+[tool.black]
+line-length = 88
+target-version = ["py313"]
+
+# ── Bandit ───────────────────────────────────────────────────────────────────
+
+[tool.bandit]
+skips = ["B101", "B311", "B404"]
+exclude = ["backend/app/ai/providers/cli_transport.py"]
+
+# ── Mypy ─────────────────────────────────────────────────────────────────────
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_unused_configs = true
+mypy_path = "backend"
+packages = ["app"]
+exclude = ["^\\.venv/", "^\\.lintro/", "^__pycache__/"]
+
+[[tool.mypy.overrides]]
+module = ["alembic", "alembic.*"]
+ignore_missing_imports = true
+disable_error_code = ["attr-defined"]
+
+# ── Pydoclint ────────────────────────────────────────────────────────────────
+
+[tool.pydoclint]
+style = "google"
+arg-type-hints-in-docstring = false
+arg-type-hints-in-signature = true
+check-return-types = false
+check-arg-order = true
+skip-checking-short-docstrings = true
+allow-init-docstring = true
+exclude = '\\.lintro/|backend/app/main\\.py'
+
+# ── Pytest ───────────────────────────────────────────────────────────────────
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+addopts = "-ra --strict-markers"

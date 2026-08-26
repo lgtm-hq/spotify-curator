@@ -1,0 +1,48 @@
+---
+name: CI - Tests
+
+"on":
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  merge_group:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: test-ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  # Coverage mode (lgtm-ci contract #340): single runtime with coverage
+  # reporting and the PR test summary comment.
+  test-coverage:
+    # yamllint disable-line rule:line-length
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-python.yml@443a687caa93b3afa306a066aae8d8a2b4e60c3c  # v0.59.0
+    with:
+      python-version: '3.13'
+      working-directory: .
+      test-path: backend/tests
+      coverage: true
+      coverage-format: json
+      coverage-threshold: 40
+      upload-coverage: true
+      publish-test-summary: true
+      # Start with modules exercised by the current pytest scaffold; broaden
+      # this scope as backend test coverage expands.
+      extra-args: >-
+        --cov-reset --cov=app.auth.router --cov=app.config --cov=app.db
+        --cov=app.main --cov=app.playlists.router
+      draft-pr-skip: true
+      job-name: '🧪 Python Coverage'
+      runner-image: ubuntu-24.04
+      tooling-ref: '443a687caa93b3afa306a066aae8d8a2b4e60c3c'  # v0.59.0
+      egress-policy: block
+      egress-preset: quality
+    permissions:
+      actions: write
+      contents: read
+      pull-requests: write

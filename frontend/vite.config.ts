@@ -1,0 +1,50 @@
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+
+const backend = {
+  target: "https://127.0.0.1:8000",
+  secure: false,
+  changeOrigin: true,
+};
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  appType: "spa",
+  server: {
+    host: "127.0.0.1",
+    port: 5173,
+    proxy: {
+      "/auth": backend,
+      "/playlists": backend,
+      "/taste": backend,
+      "/ai": backend,
+      "/cleanup/analyze": backend,
+      "/cleanup/apply": backend,
+      "/cleanup/ai": backend,
+      "/curate/start": backend,
+      "/curate/answer": backend,
+      "/curate/build": backend,
+      "/curate/save": backend,
+      "/discover": backend,
+    },
+  },
+  preview: {
+    host: "127.0.0.1",
+    port: 5173,
+    proxy: {
+      "/auth": backend,
+      "/playlists": backend,
+      "/taste": backend,
+      "/ai": backend,
+      "/cleanup/analyze": backend,
+      "/cleanup/apply": backend,
+      "/cleanup/ai": backend,
+      "/curate/start": backend,
+      "/curate/answer": backend,
+      "/curate/build": backend,
+      "/curate/save": backend,
+      "/discover": backend,
+    },
+  },
+});
