@@ -33,6 +33,9 @@ cp .env.example .env
 uvicorn app.main:app --reload --port 8000
 ```
 
+Database migrations run automatically on backend startup. To apply them manually, run
+`uv run alembic -c backend/alembic.ini upgrade head` from the repository root.
+
 ### Frontend
 
 ```bash
