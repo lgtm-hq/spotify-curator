@@ -15,7 +15,9 @@ curation, and auto-discovery.
 
 ## Prerequisites
 
-1. Spotify Developer app with redirect URI: `http://localhost:8000/auth/callback`
+1. Spotify Developer app — see the **[Spotify app setup guide](docs/spotify-app-setup.md)**
+   for step-by-step instructions including redirect URIs, OAuth scopes, and the dev-mode
+   user allow-list.
 2. Python 3.11+
 3. Node.js 20+
 
