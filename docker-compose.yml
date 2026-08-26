@@ -1,0 +1,71 @@
+---
+# Compose v2 deployment for the production Dockerfile.
+#
+# Runtime data lives in ./data. For backups, stop the app before copying
+# spotify_curator.db*, use SQLite's backup API, or take an atomic filesystem
+# snapshot.
+services:
+  data-init:
+    image: ${SPOTIFY_CURATOR_IMAGE:-spotify-curator:latest}
+    build:
+      context: .
+    user: "0:0"
+    command: ["sh", "-c", "mkdir -p /data && chown -R 10001:10001 /data"]
+    volumes:
+      - ./data:/data
+    restart: "no"
+
+  app:
+    image: ${SPOTIFY_CURATOR_IMAGE:-spotify-curator:latest}
+    build:
+      context: .
+    depends_on:
+      data-init:
+        condition: service_completed_successfully
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/spotify_curator.db}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+    ports:
+      - "${APP_HOST:-127.0.0.1}:${APP_PORT:-8000}:8000"
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8000/docs',
+          timeout=5).read()
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    profiles:
+      - tls
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

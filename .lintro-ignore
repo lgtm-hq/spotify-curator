@@ -1,0 +1,9 @@
+# Ignore test_samples directory and build artifacts from all linting/formatting
+
+backend/certs/*.pem
+backend/.venv/
+.venv/
+test_samples/
+node_modules/
+frontend/dist/
+.lintro/
