@@ -1,0 +1,8 @@
+# Gitleaks configuration for spotify-curator
+
+title = "Spotify Curator Gitleaks Configuration"
+
+# Allowlist local-only secret stores. These files are gitignored and never
+# committed; they are the expected place for real credentials during dev.
+[allowlist]
+paths = ['''backend/\.env$''']

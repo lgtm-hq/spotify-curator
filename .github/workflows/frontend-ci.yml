@@ -28,9 +28,9 @@ jobs:
     with:
       package-manager: bun
       working-directory: frontend
-      # oxlint then a production type-check + build; && short-circuits so a
-      # lint failure also fails the job. No test runner exists yet.
-      test-command: 'bun run lint && bun run build'
+      # oxlint, Vitest, then a production type-check + build; && short-circuits
+      # so an earlier failure also fails the job.
+      test-command: 'bun run lint && bun run test && bun run build'
       coverage: false
       publish-test-summary: false
       job-name: Frontend Checks
