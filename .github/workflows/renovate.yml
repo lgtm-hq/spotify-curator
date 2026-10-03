@@ -3,7 +3,7 @@ name: Maintenance - Renovate Dependencies
 # Automated dependency updates using Renovate bot. Runs daily to check for
 # outdated dependencies and creates PRs with updates.
 
-"on":
+'on':
   schedule:
     # Run daily at 22:00 UTC
     - cron: '0 22 * * *'
@@ -26,7 +26,7 @@ jobs:
     steps:
       - name: Harden Runner
         # yamllint disable-line rule:line-length
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920  # v2.20.0
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -38,7 +38,7 @@ jobs:
 
       - name: Checkout
         # yamllint disable-line rule:line-length
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 1
           persist-credentials: true
@@ -46,10 +46,10 @@ jobs:
 
       - name: Self-hosted Renovate
         # yamllint disable-line rule:line-length
-        uses: renovatebot/github-action@22e0a16091fc706b04affe6ae53d5e3358ac4023  # v46.1.19
+        uses: renovatebot/github-action@22e0a16091fc706b04affe6ae53d5e3358ac4023 # v46.1.19
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           configurationFile: renovate.json
         env:
-          LOG_LEVEL:
+          LOG_LEVEL: >-
             ${{ github.event_name == 'workflow_dispatch' && 'debug' || 'info' }}
