@@ -1,0 +1,65 @@
+---
+# Lintro Configuration
+# https://github.com/lgtm-hq/py-lintro
+#
+# Lintro is the master configuration source for all tools.
+# Native tool configs (.prettierrc, .yamllint, etc.) are used when available.
+
+enforce:
+  line_length: 88
+
+execution:
+  enabled_tools: [] # empty = all tools; per-tool toggles live under tools:
+  fail_fast: false
+  parallel: true
+
+# Fallback configurations for tools without native config files.
+# These are used when no native config (e.g., .prettierrc, .yamllint) is found.
+defaults:
+  prettier:
+    semi: true
+    singleQuote: true
+    tabWidth: 2
+    printWidth: 100
+    trailingComma: 'es5'
+    overrides:
+      - files: '*.md'
+        options:
+          printWidth: 88
+
+  markdownlint:
+    MD013:
+      line_length: 88
+      code_blocks: false
+      tables: false
+
+  yamllint:
+    extends: 'default'
+    rules:
+      comments-indentation: 'disable'
+      comments:
+        min-spaces-from-content: 1
+      truthy:
+        check-keys: true
+      line-length:
+        max: 88
+        allow-non-breakable-inline-mappings: true
+
+# Tool enable/disable settings for the content this repository holds
+# (GitHub Actions workflows, YAML, JSON, Markdown).
+tools:
+  # Prettier - Multi-language formatter (defaults above or .prettierrc.json)
+  prettier:
+    enabled: true
+
+  # Markdownlint - Markdown linter (defaults above or .markdownlint-cli2.jsonc)
+  markdownlint:
+    enabled: true
+
+  # Yamllint - YAML linter (defaults above or .yamllint)
+  yamllint:
+    enabled: true
+
+  # Actionlint - GitHub Actions linter
+  actionlint:
+    enabled: true

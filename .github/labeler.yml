@@ -4,33 +4,33 @@
 backend:
   - changed-files:
       - any-glob-to-any-file:
-          - "backend/**"
+          - 'backend/**'
 
 frontend:
   - changed-files:
       - any-glob-to-any-file:
-          - "frontend/**"
+          - 'frontend/**'
 
 ci:
   - changed-files:
       - any-glob-to-any-file:
-          - ".github/workflows/**"
-          - ".github/actions/**"
+          - '.github/workflows/**'
+          - '.github/actions/**'
 
 documentation:
   - changed-files:
       - any-glob-to-any-file:
-          - "docs/**"
-          - "README.md"
-          - "CHANGELOG.md"
-          - "**/*.md"
-          - "!.github/**/*.md"
+          - 'docs/**'
+          - 'README.md'
+          - 'CHANGELOG.md'
+          - '**/*.md'
+          - '!.github/**/*.md'
 
 dependencies:
   - changed-files:
       - any-glob-to-any-file:
-          - "pyproject.toml"
-          - "uv.lock"
-          - "frontend/package.json"
-          - "frontend/bun.lock"
-          - "renovate.json"
+          - 'pyproject.toml'
+          - 'uv.lock'
+          - 'frontend/package.json'
+          - 'frontend/bun.lock'
+          - 'renovate.json'

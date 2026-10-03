@@ -1,7 +1,7 @@
 ---
 name: Quality Check - Action Pinning Validation
 
-"on":
+'on':
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
@@ -19,9 +19,9 @@ concurrency:
 jobs:
   validate:
     # yamllint disable-line rule:line-length
-    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-validate-action-pinning.yml@443a687caa93b3afa306a066aae8d8a2b4e60c3c  # v0.59.0
+    uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-validate-action-pinning.yml@443a687caa93b3afa306a066aae8d8a2b4e60c3c # v0.59.0
     with:
-      tooling-ref: '443a687caa93b3afa306a066aae8d8a2b4e60c3c'  # v0.59.0
+      tooling-ref: '443a687caa93b3afa306a066aae8d8a2b4e60c3c' # v0.59.0
       egress-policy: block
       egress-preset: github-tooling
     permissions:

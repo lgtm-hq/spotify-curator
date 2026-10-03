@@ -1,17 +1,17 @@
 # Spotify Curator
 
-Self-hosted Spotify playlist management tool with cleanup, mood-based
-curation, and auto-discovery.
+Self-hosted Spotify playlist management tool with cleanup, mood-based curation, and
+auto-discovery.
 
 ## Features
 
-- **Cleanup** — remove duplicates, unavailable tracks, skip-heavy songs;
-  split by mood clusters
-- **Curate (Mood Concierge)** — conversational interview to build playlists
-  for your current vibe
-- **Discover** — weekly or on-demand playlists from recommendations + AI
-  taste scoring
-- **AI Engine** — provider-agnostic layer (Anthropic/OpenAI/Cursor, API or CLI transport)
+- **Cleanup** — remove duplicates, unavailable tracks, skip-heavy songs; split by mood
+  clusters
+- **Curate (Mood Concierge)** — conversational interview to build playlists for your
+  current vibe
+- **Discover** — weekly or on-demand playlists from recommendations + AI taste scoring
+- **AI Engine** — provider-agnostic layer (Anthropic/OpenAI/Cursor, API or CLI
+  transport)
 
 ## Prerequisites
 
@@ -57,10 +57,10 @@ ai:
 
 ## API Overview
 
-| Endpoint | Description |
-| -------- | ----------- |
-| `GET /auth/login` | Start Spotify OAuth |
-| `GET /playlists` | List playlists |
-| `POST /cleanup/analyze/{id}` | Analyze playlist |
-| `POST /curate/start` | Start mood interview |
-| `POST /discover/generate` | Generate discovery playlist |
+| Endpoint                     | Description                 |
+| ---------------------------- | --------------------------- |
+| `GET /auth/login`            | Start Spotify OAuth         |
+| `GET /playlists`             | List playlists              |
+| `POST /cleanup/analyze/{id}` | Analyze playlist            |
+| `POST /curate/start`         | Start mood interview        |
+| `POST /discover/generate`    | Generate discovery playlist |
