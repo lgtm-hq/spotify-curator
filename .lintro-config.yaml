@@ -9,7 +9,7 @@ enforce:
   line_length: 88
 
 execution:
-  enabled_tools: []
+  enabled_tools: [] # empty = all tools; per-tool toggles live under tools:
   fail_fast: false
   parallel: true
 
