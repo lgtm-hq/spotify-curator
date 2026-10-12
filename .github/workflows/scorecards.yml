@@ -14,10 +14,12 @@ concurrency:
 
 jobs:
   scorecards:
+    # Held at v0.59.0: v0.77.x reusable-scorecards is rejected by the
+    # Scorecard API publish verifier (lgtm-hq/lgtm-ci#1173). v0.59.0 does
+    # not declare tooling-ref, so do not pass it here (#65).
     # yamllint disable-line rule:line-length
     uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-scorecards.yml@443a687caa93b3afa306a066aae8d8a2b4e60c3c # v0.59.0
     with:
-      tooling-ref: '443a687caa93b3afa306a066aae8d8a2b4e60c3c' # v0.59.0
       egress-policy: block
       # Full allowlist (scorecard preset + project extras): harden-runner
       # enforces the caller's allowed-endpoints literally (its pre hook
