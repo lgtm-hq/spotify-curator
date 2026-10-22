@@ -4,14 +4,21 @@ name: CI - Frontend
 'on':
   push:
     branches: [main]
-    paths: ['frontend/**']
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+      - 'scripts/ci/frontend-presence.sh'
+      - 'tests/frontend-presence.sh'
   pull_request:
     branches: [main, wip/v0-prototype]
     types: [opened, synchronize, reopened, ready_for_review]
-    # frontend/** only (not this workflow file): main has no frontend/ yet —
-    # the SPA lives on wip/v0-prototype until the port epics land — so a
-    # self-trigger on the workflow file alone can only fail on cd frontend.
-    paths: ['frontend/**']
+    # Main has no frontend yet; the presence job also runs on wiring changes.
+    # Once the prototype lands, its checks run normally, including merge_group.
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+      - 'scripts/ci/frontend-presence.sh'
+      - 'tests/frontend-presence.sh'
   merge_group:
   workflow_dispatch:
 
@@ -22,7 +29,30 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  frontend-presence:
+    name: Frontend Presence
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      present: ${{ steps.presence.outputs.present }}
+    steps:
+      - name: Checkout
+        # yamllint disable-line rule:line-length
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Test presence detection
+        run: bash tests/frontend-presence.sh
+      - name: Detect frontend workdir
+        id: presence
+        run: bash scripts/ci/frontend-presence.sh >> "$GITHUB_OUTPUT"
+
   frontend:
+    needs: frontend-presence
+    # A missing manifest in an existing directory must still fail frontend CI.
+    if: needs.frontend-presence.outputs.present == 'true'
     # yamllint disable-line rule:line-length
     uses: lgtm-hq/lgtm-ci/.github/workflows/reusable-test-node-custom.yml@9ea778eb4e6b876d60b7b3d7d0d0aee5182717bb # v0.78.0
     with:
