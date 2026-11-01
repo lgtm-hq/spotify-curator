@@ -19,7 +19,7 @@ jobs:
       tooling-ref: '8f0fd9339df5d30a529aa572ceb51345b8be33a0' # v0.79.2
       egress-policy: block
       egress-preset: github-tooling
-      runner-image: ubuntu-24.04
+      runner-image: ubuntu-26.04
     permissions:
       contents: read
       pull-requests: write
