@@ -31,7 +31,7 @@ concurrency:
 jobs:
   frontend-presence:
     name: Frontend Presence
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.LGTM_CI_RUNNER || 'ubuntu-26.04' }}
     timeout-minutes: 5
     permissions:
       contents: read

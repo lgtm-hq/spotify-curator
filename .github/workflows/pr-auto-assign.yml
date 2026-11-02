@@ -19,7 +19,6 @@ jobs:
       tooling-ref: '1fac81deb64724d738339b0aa3809ece0ba26de9' # v0.83.6
       egress-policy: block
       egress-preset: github-tooling
-      runner-image: ubuntu-26.04
     permissions:
       contents: read
       pull-requests: write
